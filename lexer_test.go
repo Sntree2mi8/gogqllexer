@@ -287,44 +287,16 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 		want []Token
 	}{
 		{
-			name: "ignore whitespace",
+			name: "read comment token",
 			src: &Source{
-				Body: "   \t",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
-			want: []Token{},
-		},
-		{
-			name: "ignore whitespace",
-			src: &Source{
-				Body: "   type",
+				Body: "# This is comment.",
 				Name: "Spec_IgnoreWhiteSpace",
 			},
 			want: []Token{
 				{
-					Kind:  Name,
-					Value: "type",
-					Position: Position{
-						Line:  1,
-						Start: 3,
-					},
-				},
-			},
-		},
-		{
-			name: "punctuator bang",
-			src: &Source{
-				Body: "!",
-				Name: "SpecPunctuatorBang",
-			},
-			want: []Token{
-				{
-					Kind:  Bang,
-					Value: "",
-					Position: Position{
-						Line:  1,
-						Start: 0,
-					},
+					Kind:     Comment,
+					Value:    "# This is comment",
+					Position: Position{},
 				},
 			},
 		},
@@ -340,7 +312,6 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 			for {
 				got, err := l.NextToken()
 				if err != nil {
-					// TODO: 今は思いつくものがないのでエラーが起きたらfatalさせてしまう
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
