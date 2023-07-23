@@ -1,2 +1,2 @@
-# go-gql-lexer
+# gogqllexer
 GraphQL lexer implemented in Go.
