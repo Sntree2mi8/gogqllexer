@@ -1,5 +1,7 @@
 package gogqllexer
 
+import "log"
+
 type Lexer struct {
 	// source
 	src *Source
@@ -41,7 +43,6 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	// TODO: comments
 	// TODO: int
 	// TODO: float
 	// TODO: string
@@ -210,7 +211,25 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 	case isComment(currentRune):
-		// TODO: lineTerminatorがくるまでをコメントとして抽出する
+		// TODO: source characterの限りendをincrementする.
+		// TODO: line terminatorが登場したらそこで打ち切る.
+		// TODO: lineTerminatorは最長二つのruneで判断する必要がある
+		for l.end < len(l.src.Body) {
+			if isLineTerminator(rune(l.src.Body[l.end])) {
+				log.Println("line terminator")
+				break
+			} else {
+				l.end++
+			}
+		}
+		return Token{
+			Kind:  Comment,
+			Value: l.src.Body[l.start:l.end],
+			Position: Position{
+				Line:  l.line,
+				Start: l.start,
+			},
+		}, nil
 	}
 
 	return Token{
@@ -258,14 +277,40 @@ func isComment(r rune) bool {
 	return r == '#'
 }
 
+// https://spec.graphql.org/October2021/#sec-Line-Terminators
+func isLineTerminator(r rune) bool {
+	switch r {
+	case '\n', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-White-Space
+func isWhiteSpace(r rune) bool {
+	switch r {
+	case ' ', '\t':
+		return true
+	default:
+		return false
+	}
+}
+
 // ignoreTokens ignore specific tokens
 // https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
 func (l *Lexer) ignoreTokens() {
 	for l.end < len(l.src.Body) {
-		switch l.src.Body[l.end] {
-		case ' ', '\t':
-			// whitespaces
+		r := rune(l.src.Body[l.end])
+		switch {
+		case isWhiteSpace(r):
 			l.end++
+		case isLineTerminator(r):
+			l.line++
+			l.end++
+			if l.end < len(l.src.Body) && rune(l.src.Body[l.end]) == '\n' {
+				l.end++
+			}
 		default:
 			return
 		}

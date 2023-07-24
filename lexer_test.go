@@ -294,9 +294,88 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 			},
 			want: []Token{
 				{
-					Kind:     Comment,
-					Value:    "# This is comment",
-					Position: Position{},
+					Kind:  Comment,
+					Value: "# This is comment.",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "# This is comment.\n\r\n",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is comment.",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "\n\r\n# This is comment.",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is comment.",
+					Position: Position{
+						Line:  3,
+						Start: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "# This is comment.   ",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is comment.   ",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "# This is first comment.\n# This is second comment.",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is first comment.",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+				{
+					Kind:  Comment,
+					Value: "# This is second comment.",
+					Position: Position{
+						Line:  2,
+						Start: 25,
+					},
 				},
 			},
 		},
