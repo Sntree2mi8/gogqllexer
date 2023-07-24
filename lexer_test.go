@@ -287,43 +287,94 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 		want []Token
 	}{
 		{
-			name: "ignore whitespace",
+			name: "read comment token",
 			src: &Source{
-				Body: "   \t",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
-			want: []Token{},
-		},
-		{
-			name: "ignore whitespace",
-			src: &Source{
-				Body: "   type",
+				Body: "# This is comment.",
 				Name: "Spec_IgnoreWhiteSpace",
 			},
 			want: []Token{
 				{
-					Kind:  Name,
-					Value: "type",
+					Kind:  Comment,
+					Value: "# This is comment.",
 					Position: Position{
 						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "# This is comment.\n\r\n",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is comment.",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "\n\r\n# This is comment.",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is comment.",
+					Position: Position{
+						Line:  3,
 						Start: 3,
 					},
 				},
 			},
 		},
 		{
-			name: "punctuator bang",
+			name: "read comment token",
 			src: &Source{
-				Body: "!",
-				Name: "SpecPunctuatorBang",
+				Body: "# This is comment.   ",
+				Name: "Spec_IgnoreWhiteSpace",
 			},
 			want: []Token{
 				{
-					Kind:  Bang,
-					Value: "",
+					Kind:  Comment,
+					Value: "# This is comment.   ",
 					Position: Position{
 						Line:  1,
 						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src: &Source{
+				Body: "# This is first comment.\n# This is second comment.",
+				Name: "Spec_IgnoreWhiteSpace",
+			},
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# This is first comment.",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+				{
+					Kind:  Comment,
+					Value: "# This is second comment.",
+					Position: Position{
+						Line:  2,
+						Start: 25,
 					},
 				},
 			},
@@ -340,7 +391,6 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 			for {
 				got, err := l.NextToken()
 				if err != nil {
-					// TODO: 今は思いつくものがないのでエラーが起きたらfatalさせてしまう
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {

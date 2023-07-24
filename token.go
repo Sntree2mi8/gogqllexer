@@ -20,6 +20,7 @@ const (
 	BraceL
 	BraceR
 	Pipe
+	Comment
 )
 
 type Position struct {
