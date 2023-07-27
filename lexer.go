@@ -1,6 +1,8 @@
 package gogqllexer
 
-import "log"
+import (
+	"log"
+)
 
 type Lexer struct {
 	// source
@@ -43,8 +45,6 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	// TODO: int
-	// TODO: float
 	// TODO: string
 	currentRune := rune(l.src.Body[l.start])
 	switch {
@@ -211,9 +211,6 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 	case isComment(currentRune):
-		// TODO: source characterの限りendをincrementする.
-		// TODO: line terminatorが登場したらそこで打ち切る.
-		// TODO: lineTerminatorは最長二つのruneで判断する必要がある
 		for l.end < len(l.src.Body) {
 			if isLineTerminator(rune(l.src.Body[l.end])) {
 				log.Println("line terminator")
@@ -224,6 +221,54 @@ func (l *Lexer) NextToken() (Token, error) {
 		}
 		return Token{
 			Kind:  Comment,
+			Value: l.src.Body[l.start:l.end],
+			Position: Position{
+				Line:  l.line,
+				Start: l.start,
+			},
+		}, nil
+	case isNumber(currentRune):
+		if isNegativeSign(rune(l.src.Body[l.end])) {
+			l.end++
+		}
+
+		if isZero(rune(l.src.Body[l.end])) {
+			l.end++
+			if l.end < len(l.src.Body) && isDigit(rune(l.src.Body[l.end])) {
+				return Token{
+					Kind:  Invalid,
+					Value: "invalid number token",
+					Position: Position{
+						Line:  l.line,
+						Start: l.start,
+					},
+				}, nil
+			}
+		} else if isNonZeroDigit(rune(l.src.Body[l.end])) {
+			l.end++
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		} else {
+			return Token{
+				Kind:  Invalid,
+				Value: "invalid number token",
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		}
+
+		// fractional part
+		// exponent part
+
+		return Token{
+			Kind:  Int,
 			Value: l.src.Body[l.start:l.end],
 			Position: Position{
 				Line:  l.line,

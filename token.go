@@ -21,6 +21,7 @@ const (
 	BraceR
 	Pipe
 	Comment
+	Int
 )
 
 type Position struct {

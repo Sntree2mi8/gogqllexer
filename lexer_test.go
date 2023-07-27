@@ -409,47 +409,90 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 	}
 }
 
-func TestLexer_NextToken(t *testing.T) {
+func TestLexer_NextToken_Int(t *testing.T) {
 	tests := []struct {
 		name string
 		src  *Source
 		want []Token
 	}{
 		{
-			name: "ignore whitespace",
+			name: "IntToken_0",
 			src: &Source{
-				Body: "   \t",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
-			want: []Token{},
-		},
-		{
-			name: "ignore whitespace",
-			src: &Source{
-				Body: "   type",
-				Name: "Spec_IgnoreWhiteSpace",
+				Body: "0",
+				Name: "Spec",
 			},
 			want: []Token{
 				{
-					Kind:  Name,
-					Value: "type",
+					Kind:  Int,
+					Value: "0",
 					Position: Position{
 						Line:  1,
-						Start: 3,
+						Start: 0,
 					},
 				},
 			},
 		},
 		{
-			name: "punctuator bang",
+			name: "IntToken_1",
 			src: &Source{
-				Body: "!",
-				Name: "SpecPunctuatorBang",
+				Body: "1",
+				Name: "Spec",
 			},
 			want: []Token{
 				{
-					Kind:  Bang,
-					Value: "",
+					Kind:  Int,
+					Value: "1",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "IntToken_9",
+			src: &Source{
+				Body: "9",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Int,
+					Value: "9",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "IntToken_100",
+			src: &Source{
+				Body: "100",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Int,
+					Value: "100",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "IntToken_Negative",
+			src: &Source{
+				Body: "-9",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Int,
+					Value: "-9",
 					Position: Position{
 						Line:  1,
 						Start: 0,
@@ -469,7 +512,6 @@ func TestLexer_NextToken(t *testing.T) {
 			for {
 				got, err := l.NextToken()
 				if err != nil {
-					// TODO: 今は思いつくものがないのでエラーが起きたらfatalさせてしまう
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
