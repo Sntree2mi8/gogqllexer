@@ -22,6 +22,7 @@ const (
 	Pipe
 	Comment
 	Int
+	Float
 )
 
 type Position struct {

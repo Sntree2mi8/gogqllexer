@@ -529,3 +529,211 @@ func TestLexer_NextToken_Int(t *testing.T) {
 		})
 	}
 }
+
+func TestLexer_NextToken_Float(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "0.1",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.1",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "0.100",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.100",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "0.0021",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.0021",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "123.0021",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "123.0021",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "-123.0021",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "-123.0021",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src: &Source{
+				Body: "0.0",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.0",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{
+				src:  tt.src,
+				line: 1,
+			}
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+func TestLexer_NextToken_Exponent(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "ExponentToken",
+			src: &Source{
+				Body: "1e50",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1e50",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src: &Source{
+				Body: "1.0e50",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e50",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{
+				src:  tt.src,
+				line: 1,
+			}
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}

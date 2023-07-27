@@ -26,8 +26,6 @@ func New(src *Source) *Lexer {
 }
 
 func (l *Lexer) NextToken() (Token, error) {
-	// TODO: read token from sourceBody
-
 	// TODO: ignoreTokensまだまだある
 	l.ignoreTokens()
 	l.start = l.end
@@ -228,6 +226,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			},
 		}, nil
 	case isNumber(currentRune):
+		isFloat := false
 		if isNegativeSign(rune(l.src.Body[l.end])) {
 			l.end++
 		}
@@ -264,17 +263,49 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 
-		// fractional part
-		// exponent part
+		if isFractionalPart(rune(l.src.Body[l.end])) {
+			l.end++
+			isFloat = true
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		}
 
-		return Token{
-			Kind:  Int,
-			Value: l.src.Body[l.start:l.end],
-			Position: Position{
-				Line:  l.line,
-				Start: l.start,
-			},
-		}, nil
+		if isExponentPart(rune(l.src.Body[l.end])) {
+			l.end++
+			isFloat = true
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		}
+
+		if isFloat {
+			return Token{
+				Kind:  Float,
+				Value: l.src.Body[l.start:l.end],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		} else {
+			return Token{
+				Kind:  Int,
+				Value: l.src.Body[l.start:l.end],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		}
 	}
 
 	return Token{
