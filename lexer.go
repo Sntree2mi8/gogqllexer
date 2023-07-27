@@ -1,6 +1,8 @@
 package gogqllexer
 
-import "log"
+import (
+	"log"
+)
 
 type Lexer struct {
 	// source
@@ -24,8 +26,6 @@ func New(src *Source) *Lexer {
 }
 
 func (l *Lexer) NextToken() (Token, error) {
-	// TODO: read token from sourceBody
-
 	// TODO: ignoreTokensまだまだある
 	l.ignoreTokens()
 	l.start = l.end
@@ -43,8 +43,6 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	// TODO: int
-	// TODO: float
 	// TODO: string
 	currentRune := rune(l.src.Body[l.start])
 	switch {
@@ -211,9 +209,6 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 	case isComment(currentRune):
-		// TODO: source characterの限りendをincrementする.
-		// TODO: line terminatorが登場したらそこで打ち切る.
-		// TODO: lineTerminatorは最長二つのruneで判断する必要がある
 		for l.end < len(l.src.Body) {
 			if isLineTerminator(rune(l.src.Body[l.end])) {
 				log.Println("line terminator")
@@ -230,6 +225,87 @@ func (l *Lexer) NextToken() (Token, error) {
 				Start: l.start,
 			},
 		}, nil
+	case isNumber(currentRune):
+		isFloat := false
+		if isNegativeSign(rune(l.src.Body[l.end])) {
+			l.end++
+		}
+
+		if isZero(rune(l.src.Body[l.end])) {
+			l.end++
+			if l.end < len(l.src.Body) && isDigit(rune(l.src.Body[l.end])) {
+				return Token{
+					Kind:  Invalid,
+					Value: "invalid number token",
+					Position: Position{
+						Line:  l.line,
+						Start: l.start,
+					},
+				}, nil
+			}
+		} else if isNonZeroDigit(rune(l.src.Body[l.end])) {
+			l.end++
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		} else {
+			return Token{
+				Kind:  Invalid,
+				Value: "invalid number token",
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		}
+
+		if isFractionalPart(rune(l.src.Body[l.end])) {
+			l.end++
+			isFloat = true
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		}
+
+		if isExponentPart(rune(l.src.Body[l.end])) {
+			l.end++
+			isFloat = true
+			for l.end < len(l.src.Body) {
+				if isDigit(rune(l.src.Body[l.end])) {
+					l.end++
+				} else {
+					break
+				}
+			}
+		}
+
+		if isFloat {
+			return Token{
+				Kind:  Float,
+				Value: l.src.Body[l.start:l.end],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		} else {
+			return Token{
+				Kind:  Int,
+				Value: l.src.Body[l.start:l.end],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, nil
+		}
 	}
 
 	return Token{
