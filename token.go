@@ -23,6 +23,7 @@ const (
 	Comment
 	Int
 	Float
+	String
 )
 
 type Position struct {

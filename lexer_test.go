@@ -737,3 +737,56 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 		})
 	}
 }
+
+func TestLexer_NextToken_String(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "StringToken_empty",
+			src: &Source{
+				Body: "",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{
+				src:  tt.src,
+				line: 1,
+			}
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}

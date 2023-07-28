@@ -27,7 +27,7 @@ func New(src *Source) *Lexer {
 
 func (l *Lexer) NextToken() (Token, error) {
 	// TODO: ignoreTokensまだまだある
-	l.ignoreTokens()
+	l.skipIgnoreTokens()
 	l.start = l.end
 
 	// 終端に達しているのでこれ以上Readするものがない
@@ -43,7 +43,6 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	// TODO: string
 	currentRune := rune(l.src.Body[l.start])
 	switch {
 	case isNameStart(currentRune):
@@ -306,6 +305,7 @@ func (l *Lexer) NextToken() (Token, error) {
 				},
 			}, nil
 		}
+	case isStringValue(currentRune):
 	}
 
 	return Token{
@@ -318,39 +318,23 @@ func (l *Lexer) NextToken() (Token, error) {
 	}, nil
 }
 
-// https://spec.graphql.org/October2021/#NameStart
-func isNameStart(r rune) bool {
-	switch r {
-	case '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z':
-		return true
-	default:
-		return false
+// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
+func (l *Lexer) skipIgnoreTokens() {
+	for l.end < len(l.src.Body) {
+		r := rune(l.src.Body[l.end])
+		switch {
+		case isWhiteSpace(r):
+			l.end++
+		case isLineTerminator(r):
+			l.line++
+			l.end++
+			if l.end < len(l.src.Body) && rune(l.src.Body[l.end]) == '\n' {
+				l.end++
+			}
+		default:
+			return
+		}
 	}
-}
-
-// https://spec.graphql.org/October2021/#NameContinue
-func isNameContinue(r rune) bool {
-	switch r {
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z':
-		return true
-	default:
-		return false
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Punctuators
-func isPunctuator(r rune) bool {
-	switch r {
-	case '!', '$', '&', '(', ')', '.', ':', '=', '@', '[', ']', '{', '}', '|':
-		return true
-	default:
-		return false
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Comments
-func isComment(r rune) bool {
-	return r == '#'
 }
 
 // https://spec.graphql.org/October2021/#sec-Line-Terminators
@@ -370,25 +354,5 @@ func isWhiteSpace(r rune) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// ignoreTokens ignore specific tokens
-// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
-func (l *Lexer) ignoreTokens() {
-	for l.end < len(l.src.Body) {
-		r := rune(l.src.Body[l.end])
-		switch {
-		case isWhiteSpace(r):
-			l.end++
-		case isLineTerminator(r):
-			l.line++
-			l.end++
-			if l.end < len(l.src.Body) && rune(l.src.Body[l.end]) == '\n' {
-				l.end++
-			}
-		default:
-			return
-		}
 	}
 }
