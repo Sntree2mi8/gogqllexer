@@ -2,6 +2,7 @@ package gogqllexer
 
 import (
 	"log"
+	"strconv"
 )
 
 type Lexer struct {
@@ -27,7 +28,7 @@ func New(src *Source) *Lexer {
 
 func (l *Lexer) NextToken() (Token, error) {
 	// TODO: ignoreTokensまだまだある
-	l.ignoreTokens()
+	l.skipIgnoreTokens()
 	l.start = l.end
 
 	// 終端に達しているのでこれ以上Readするものがない
@@ -43,7 +44,6 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	// TODO: string
 	currentRune := rune(l.src.Body[l.start])
 	switch {
 	case isNameStart(currentRune):
@@ -263,7 +263,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 
-		if isFractionalPart(rune(l.src.Body[l.end])) {
+		if l.end < len(l.src.Body) && isFractionalPart(rune(l.src.Body[l.end])) {
 			l.end++
 			isFloat = true
 			for l.end < len(l.src.Body) {
@@ -275,7 +275,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			}
 		}
 
-		if isExponentPart(rune(l.src.Body[l.end])) {
+		if l.end < len(l.src.Body) && isExponentPart(rune(l.src.Body[l.end])) {
 			l.end++
 			isFloat = true
 			for l.end < len(l.src.Body) {
@@ -306,6 +306,18 @@ func (l *Lexer) NextToken() (Token, error) {
 				},
 			}, nil
 		}
+	case isStringValue(currentRune):
+		if l.end+3 < len(l.src.Body) && l.src.Body[l.end:l.end+3] == `"""` {
+			t, consumedByte, consumedLine := l.readStringBlockToken()
+			l.end += consumedByte
+			l.line += consumedLine
+			return t, nil
+		} else {
+			t, consumedByte, consumedLine := l.readStringToken()
+			l.end += consumedByte
+			l.line += consumedLine
+			return t, nil
+		}
 	}
 
 	return Token{
@@ -318,39 +330,156 @@ func (l *Lexer) NextToken() (Token, error) {
 	}, nil
 }
 
-// https://spec.graphql.org/October2021/#NameStart
-func isNameStart(r rune) bool {
-	switch r {
-	case '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z':
-		return true
-	default:
-		return false
+func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine int) {
+	// consumedByte initial value is 1 because of skipping double quote
+	consumedByte = 1
+
+StringReadLoop:
+	for l.end+consumedByte < len(l.src.Body) {
+		switch rune(l.src.Body[l.end+consumedByte]) {
+		case '\n', '\r':
+			consumedByte++
+			break StringReadLoop
+		case '"':
+			consumedByte++
+			return Token{
+				Kind:  String,
+				Value: l.src.Body[l.start : l.end+consumedByte],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, consumedByte, consumedLine
+		case '\\':
+			consumedByte++
+			if l.end+consumedByte < len(l.src.Body) {
+				nextRune := rune(l.src.Body[l.end+consumedByte])
+				switch nextRune {
+				case 'u':
+					consumedByte++
+					if l.end+consumedByte+4 >= len(l.src.Body) {
+						break StringReadLoop
+					}
+					_, err := strconv.ParseUint(l.src.Body[l.end+consumedByte:l.end+consumedByte+4], 16, 64)
+					if err != nil {
+						break StringReadLoop
+					}
+					consumedByte += 4
+				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					consumedByte++
+				default:
+					consumedByte++
+					break StringReadLoop
+				}
+			} else {
+				break StringReadLoop
+			}
+		default:
+			if rune(l.src.Body[l.end+consumedByte]) < 0x0020 && rune(l.src.Body[l.end+consumedByte]) != '\t' {
+				consumedByte++
+				break StringReadLoop
+			}
+			consumedByte++
+		}
 	}
+
+	return Token{
+		Kind:  Invalid,
+		Value: "",
+		Position: Position{
+			Line:  l.line,
+			Start: l.start,
+		},
+	}, consumedByte, consumedLine
 }
 
-// https://spec.graphql.org/October2021/#NameContinue
-func isNameContinue(r rune) bool {
-	switch r {
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z':
-		return true
-	default:
-		return false
+func (l *Lexer) readStringBlockToken() (token Token, consumedByte int, consumedLine int) {
+	consumedByte = 3
+
+BlockStringReadLoop:
+	for l.end+consumedByte < len(l.src.Body) {
+		switch rune(l.src.Body[l.end+consumedByte]) {
+		case '\n':
+			consumedByte++
+			consumedLine++
+		case '\r':
+			consumedByte++
+			consumedLine++
+			if l.end+consumedByte < len(l.src.Body) && rune(l.src.Body[l.end+consumedByte]) == '\n' {
+				consumedByte++
+			}
+		case '"':
+			if l.end+consumedByte+3 <= len(l.src.Body) && l.src.Body[l.end+consumedByte:l.end+consumedByte+3] == `"""` {
+				consumedByte += 3
+				return Token{
+					Kind:  BlockString,
+					Value: l.src.Body[l.start : l.end+consumedByte],
+					Position: Position{
+						Line:  l.line,
+						Start: l.start,
+					},
+				}, consumedByte, consumedLine
+			} else {
+				consumedByte++
+			}
+		case '\\':
+			consumedByte++
+			if l.end+consumedByte < len(l.src.Body) {
+				nextRune := rune(l.src.Body[l.end+consumedByte])
+				switch nextRune {
+				case 'u':
+					consumedByte++
+					if l.end+consumedByte+4 >= len(l.src.Body) {
+						break BlockStringReadLoop
+					}
+					_, err := strconv.ParseUint(l.src.Body[l.end+consumedByte:l.end+consumedByte+4], 16, 64)
+					if err != nil {
+						break BlockStringReadLoop
+					}
+					consumedByte += 4
+				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					consumedByte++
+				default:
+					consumedByte++
+					break BlockStringReadLoop
+				}
+			} else {
+				break BlockStringReadLoop
+			}
+		default:
+			r := rune(l.src.Body[l.end+consumedByte])
+			if r < 0x0020 && r != '\t' && r != '\n' && r != '\r' {
+				consumedByte++
+				break BlockStringReadLoop
+			}
+			consumedByte++
+		}
 	}
+
+	return Token{
+		Kind:     0,
+		Value:    "",
+		Position: Position{},
+	}, consumedByte, consumedLine
 }
 
-// https://spec.graphql.org/October2021/#sec-Punctuators
-func isPunctuator(r rune) bool {
-	switch r {
-	case '!', '$', '&', '(', ')', '.', ':', '=', '@', '[', ']', '{', '}', '|':
-		return true
-	default:
-		return false
+// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
+func (l *Lexer) skipIgnoreTokens() {
+	for l.end < len(l.src.Body) {
+		r := rune(l.src.Body[l.end])
+		switch {
+		case isWhiteSpace(r):
+			l.end++
+		case isLineTerminator(r):
+			l.line++
+			l.end++
+			if l.end < len(l.src.Body) && rune(l.src.Body[l.end]) == '\n' {
+				l.end++
+			}
+		default:
+			return
+		}
 	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Comments
-func isComment(r rune) bool {
-	return r == '#'
 }
 
 // https://spec.graphql.org/October2021/#sec-Line-Terminators
@@ -370,25 +499,5 @@ func isWhiteSpace(r rune) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// ignoreTokens ignore specific tokens
-// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
-func (l *Lexer) ignoreTokens() {
-	for l.end < len(l.src.Body) {
-		r := rune(l.src.Body[l.end])
-		switch {
-		case isWhiteSpace(r):
-			l.end++
-		case isLineTerminator(r):
-			l.line++
-			l.end++
-			if l.end < len(l.src.Body) && rune(l.src.Body[l.end]) == '\n' {
-				l.end++
-			}
-		default:
-			return
-		}
 	}
 }
