@@ -738,21 +738,142 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 	}
 }
 
-func TestLexer_NextToken_String(t *testing.T) {
+func TestLexer_NextToken_String_Invalid(t *testing.T) {
 	tests := []struct {
 		name string
 		src  *Source
 		want []Token
 	}{
 		{
-			name: "StringToken_empty",
+			name: "not closing string value",
 			src: &Source{
-				Body: "",
+				Body: "\"not closing string value",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "invalid string character (line feed)",
+			src: &Source{
+				Body: "\"\n\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "invalid string character (line carriage return)",
+			src: &Source{
+				Body: "\"\r\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "invalid string character (single backslash)",
+			src: &Source{
+				Body: "\"\\\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		// invalid escaped character
+		{
+			name: "escaped character (backslash)",
+			src: &Source{
+				Body: "\"\\\\\"",
 				Name: "Spec",
 			},
 			want: []Token{
 				{
 					Kind:  String,
+					Value: "\"\\\\\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		// invalid escaped unicode
+		{
+			name: "escaped unicode over f",
+			src: &Source{
+				Body: "\"\\u000g\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped unicode less than 4 digits",
+			src: &Source{
+				Body: "\"\\u000\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped unicode less than 4 digits",
+			src: &Source{
+				Body: "\"\\u\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
 					Value: "",
 					Position: Position{
 						Line:  1,
@@ -777,6 +898,301 @@ func TestLexer_NextToken_String(t *testing.T) {
 				}
 				if got.Kind == EOF {
 					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+				if got.Kind == Invalid {
+					break
+				}
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+func TestLexer_NextToken_String(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "empty string",
+			src: &Source{
+				Body: "\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "simple string",
+			src: &Source{
+				Body: "\"simple string\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"simple string\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "simple string with white space",
+			src: &Source{
+				Body: "\"  simple string  \"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"  simple string  \"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		// escaped character
+		{
+			name: "escaped character (backslash)",
+			src: &Source{
+				Body: "\"\\\\\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\\\\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (double quote)",
+			src: &Source{
+				Body: "\"\\\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (slash)",
+			src: &Source{
+				Body: "\"\\/\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\/\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (backspace)",
+			src: &Source{
+				Body: "\"\\b\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\b\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (form feed)",
+			src: &Source{
+				Body: "\"\\f\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\f\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (line feed)",
+			src: &Source{
+				Body: "\"\\n\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\n\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (carriage return)",
+			src: &Source{
+				Body: "\"\\r\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\r\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped character (horizontal tab)",
+			src: &Source{
+				Body: "\"\\t\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\t\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		// escaped unicode
+		{
+			name: "escaped unicode",
+			src: &Source{
+				Body: "\"\\u000a\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\u000a\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped unicode",
+			src: &Source{
+				Body: "\"\\u0000\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\u0000\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped unicode",
+			src: &Source{
+				Body: "\"\\uffff\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\uffff\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "escaped unicode",
+			src: &Source{
+				Body: "\"\\uffff0\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\uffff0\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{
+				src:  tt.src,
+				line: 1,
+			}
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
 					break
 				}
 

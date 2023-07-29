@@ -2,6 +2,7 @@ package gogqllexer
 
 import (
 	"log"
+	"strconv"
 )
 
 type Lexer struct {
@@ -306,6 +307,10 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 	case isStringValue(currentRune):
+		// TODO: block string
+		t, consumed := l.readStringToken()
+		l.end += consumed
+		return t, nil
 	}
 
 	return Token{
@@ -316,6 +321,68 @@ func (l *Lexer) NextToken() (Token, error) {
 			Start: l.start,
 		},
 	}, nil
+}
+
+func (l *Lexer) readStringToken() (token Token, consumedByte int) {
+	// consumedByte initial value is 1 because of skipping double quote
+	consumedByte = 1
+
+StringReadLoop:
+	for l.end+consumedByte < len(l.src.Body) {
+		switch rune(l.src.Body[l.end+consumedByte]) {
+		case '\n', '\r':
+			consumedByte++
+			break StringReadLoop
+		case '"':
+			consumedByte++
+			return Token{
+				Kind:  String,
+				Value: l.src.Body[l.start : l.end+consumedByte],
+				Position: Position{
+					Line:  l.line,
+					Start: l.start,
+				},
+			}, consumedByte
+		case '\\':
+			consumedByte++
+			if l.end+consumedByte < len(l.src.Body) {
+				nextRune := rune(l.src.Body[l.end+consumedByte])
+				switch nextRune {
+				case 'u':
+					consumedByte++
+					if l.end+consumedByte+4 >= len(l.src.Body) {
+						break StringReadLoop
+					}
+					_, err := strconv.ParseUint(l.src.Body[l.end+consumedByte:l.end+consumedByte+4], 16, 64)
+					if err != nil {
+						break StringReadLoop
+					}
+					consumedByte += 4
+				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					consumedByte++
+				default:
+					consumedByte++
+					break StringReadLoop
+				}
+			} else {
+				break StringReadLoop
+			}
+		default:
+			consumedByte++
+			if rune(l.src.Body[l.end+consumedByte]) < 0x0020 && rune(l.src.Body[l.end+consumedByte]) != '\t' {
+				break StringReadLoop
+			}
+		}
+	}
+
+	return Token{
+		Kind:  Invalid,
+		Value: "",
+		Position: Position{
+			Line:  l.line,
+			Start: l.start,
+		},
+	}, consumedByte
 }
 
 // https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
