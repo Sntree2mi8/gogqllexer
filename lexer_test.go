@@ -1206,3 +1206,123 @@ func TestLexer_NextToken_String(t *testing.T) {
 		})
 	}
 }
+
+func TestLexer_NextToken_BlockString(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "empty block string",
+			src: &Source{
+				Body: "\"\"\"\"\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  BlockString,
+					Value: "\"\"\"\"\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "simple string",
+			src: &Source{
+				Body: "\"\"\"simple string\"\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  BlockString,
+					Value: "\"\"\"simple string\"\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "white space",
+			src: &Source{
+				Body: "\"\"\"  simple string  \"\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  BlockString,
+					Value: "\"\"\"  simple string  \"\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "line feed",
+			src: &Source{
+				Body: "\"\"\" \nsimple string\"\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  BlockString,
+					Value: "\"\"\" \nsimple string\"\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "line carriage return",
+			src: &Source{
+				Body: "\"\"\" \rsimple string\"\"\"",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  BlockString,
+					Value: "\"\"\" \rsimple string\"\"\"",
+					Position: Position{
+						Line:  1,
+						Start: 0,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{
+				src:  tt.src,
+				line: 1,
+			}
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}

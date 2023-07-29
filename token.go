@@ -24,6 +24,7 @@ const (
 	Int
 	Float
 	String
+	BlockString
 )
 
 type Position struct {

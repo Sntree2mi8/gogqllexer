@@ -263,7 +263,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 
-		if isFractionalPart(rune(l.src.Body[l.end])) {
+		if l.end < len(l.src.Body) && isFractionalPart(rune(l.src.Body[l.end])) {
 			l.end++
 			isFloat = true
 			for l.end < len(l.src.Body) {
@@ -275,7 +275,7 @@ func (l *Lexer) NextToken() (Token, error) {
 			}
 		}
 
-		if isExponentPart(rune(l.src.Body[l.end])) {
+		if l.end < len(l.src.Body) && isExponentPart(rune(l.src.Body[l.end])) {
 			l.end++
 			isFloat = true
 			for l.end < len(l.src.Body) {
@@ -307,10 +307,17 @@ func (l *Lexer) NextToken() (Token, error) {
 			}, nil
 		}
 	case isStringValue(currentRune):
-		// TODO: block string
-		t, consumed := l.readStringToken()
-		l.end += consumed
-		return t, nil
+		if l.end+3 < len(l.src.Body) && l.src.Body[l.end:l.end+3] == `"""` {
+			t, consumedByte, consumedLine := l.readStringBlockToken()
+			l.end += consumedByte
+			l.line += consumedLine
+			return t, nil
+		} else {
+			t, consumedByte, consumedLine := l.readStringToken()
+			l.end += consumedByte
+			l.line += consumedLine
+			return t, nil
+		}
 	}
 
 	return Token{
@@ -323,7 +330,7 @@ func (l *Lexer) NextToken() (Token, error) {
 	}, nil
 }
 
-func (l *Lexer) readStringToken() (token Token, consumedByte int) {
+func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine int) {
 	// consumedByte initial value is 1 because of skipping double quote
 	consumedByte = 1
 
@@ -342,7 +349,7 @@ StringReadLoop:
 					Line:  l.line,
 					Start: l.start,
 				},
-			}, consumedByte
+			}, consumedByte, consumedLine
 		case '\\':
 			consumedByte++
 			if l.end+consumedByte < len(l.src.Body) {
@@ -368,10 +375,11 @@ StringReadLoop:
 				break StringReadLoop
 			}
 		default:
-			consumedByte++
 			if rune(l.src.Body[l.end+consumedByte]) < 0x0020 && rune(l.src.Body[l.end+consumedByte]) != '\t' {
+				consumedByte++
 				break StringReadLoop
 			}
+			consumedByte++
 		}
 	}
 
@@ -382,7 +390,77 @@ StringReadLoop:
 			Line:  l.line,
 			Start: l.start,
 		},
-	}, consumedByte
+	}, consumedByte, consumedLine
+}
+
+func (l *Lexer) readStringBlockToken() (token Token, consumedByte int, consumedLine int) {
+	consumedByte = 3
+
+BlockStringReadLoop:
+	for l.end+consumedByte < len(l.src.Body) {
+		switch rune(l.src.Body[l.end+consumedByte]) {
+		case '\n':
+			consumedByte++
+			consumedLine++
+		case '\r':
+			consumedByte++
+			consumedLine++
+			if l.end+consumedByte < len(l.src.Body) && rune(l.src.Body[l.end+consumedByte]) == '\n' {
+				consumedByte++
+			}
+		case '"':
+			if l.end+consumedByte+3 <= len(l.src.Body) && l.src.Body[l.end+consumedByte:l.end+consumedByte+3] == `"""` {
+				consumedByte += 3
+				return Token{
+					Kind:  BlockString,
+					Value: l.src.Body[l.start : l.end+consumedByte],
+					Position: Position{
+						Line:  l.line,
+						Start: l.start,
+					},
+				}, consumedByte, consumedLine
+			} else {
+				consumedByte++
+			}
+		case '\\':
+			consumedByte++
+			if l.end+consumedByte < len(l.src.Body) {
+				nextRune := rune(l.src.Body[l.end+consumedByte])
+				switch nextRune {
+				case 'u':
+					consumedByte++
+					if l.end+consumedByte+4 >= len(l.src.Body) {
+						break BlockStringReadLoop
+					}
+					_, err := strconv.ParseUint(l.src.Body[l.end+consumedByte:l.end+consumedByte+4], 16, 64)
+					if err != nil {
+						break BlockStringReadLoop
+					}
+					consumedByte += 4
+				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					consumedByte++
+				default:
+					consumedByte++
+					break BlockStringReadLoop
+				}
+			} else {
+				break BlockStringReadLoop
+			}
+		default:
+			r := rune(l.src.Body[l.end+consumedByte])
+			if r < 0x0020 && r != '\t' && r != '\n' && r != '\r' {
+				consumedByte++
+				break BlockStringReadLoop
+			}
+			consumedByte++
+		}
+	}
+
+	return Token{
+		Kind:     0,
+		Value:    "",
+		Position: Position{},
+	}, consumedByte, consumedLine
 }
 
 // https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
