@@ -2,6 +2,9 @@ package gogqllexer
 
 import (
 	"github.com/stretchr/testify/assert"
+	"io"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -23,7 +26,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -40,7 +43,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -57,7 +60,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -74,7 +77,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -91,7 +94,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -108,7 +111,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -125,7 +128,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -142,7 +145,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -159,7 +162,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -176,7 +179,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -193,7 +196,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -210,7 +213,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -227,7 +230,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -244,7 +247,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -261,11 +264,9 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 			for {
 				got, err := l.NextToken()
 				if err != nil {
-					// TODO: 今は思いつくものがないのでエラーが起きたらfatalさせてしまう
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
-					t.Log(got)
 					break
 				}
 
@@ -756,7 +757,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -773,7 +774,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -790,7 +791,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -807,7 +808,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -825,7 +826,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "\"\\\\\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -843,7 +844,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -860,7 +861,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -877,7 +878,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -897,7 +898,6 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
-					t.Log(got)
 					break
 				}
 
@@ -933,7 +933,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -950,7 +950,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"simple string\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -967,7 +967,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"  simple string  \"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -985,7 +985,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\\\\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1002,7 +1002,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\\"\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1019,7 +1019,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\/\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1036,7 +1036,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\b\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1053,7 +1053,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\f\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1070,7 +1070,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\n\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1087,7 +1087,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\r\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1104,7 +1104,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\t\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1122,7 +1122,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\u000a\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1139,7 +1139,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\u0000\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1156,7 +1156,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\uffff\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1173,7 +1173,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 					Value: "\"\\uffff0\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1225,7 +1225,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 					Value: "\"\"\"\"\"\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1242,7 +1242,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 					Value: "\"\"\"simple string\"\"\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1259,7 +1259,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 					Value: "\"\"\"  simple string  \"\"\"",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -1275,8 +1275,8 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 					Kind:  BlockString,
 					Value: "\"\"\" \nsimple string\"\"\"",
 					Position: Position{
-						Line:  1,
-						Start: 0,
+						Line:  2,
+						Start: 1,
 					},
 				},
 			},
@@ -1292,8 +1292,8 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 					Kind:  BlockString,
 					Value: "\"\"\" \rsimple string\"\"\"",
 					Position: Position{
-						Line:  1,
-						Start: 0,
+						Line:  2,
+						Start: 1,
 					},
 				},
 			},
@@ -1324,5 +1324,95 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 				t.Fatal("miss")
 			}
 		})
+	}
+}
+
+func TestLexer(t *testing.T) {
+	// testdata/schema/schema.graphqlを読み取る
+	f, err := os.Open("./testdata/schema/schema.graphqls")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	b, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	src := &Source{
+		Body: string(b),
+		Name: "testdata/schema/schema.graphqls",
+	}
+
+	l := New(src)
+
+	tokens := make([]Token, 0)
+	for {
+		got, err := l.NextToken()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tokens = append(tokens, got)
+		if got.Kind == EOF || got.Kind == Invalid {
+			break
+		}
+	}
+
+	for _, token := range tokens {
+		log.Println(DebugTokenString(token), token.Value, token.Position)
+	}
+}
+
+// DebugTokenString はトークンの文字列表現を返す
+func DebugTokenString(t Token) string {
+	switch t.Kind {
+	case EOF:
+		return "EOF"
+	case Invalid:
+		return "Invalid"
+	case Comment:
+		return "Comment"
+	case Int:
+		return "Int"
+	case Float:
+		return "Float"
+	case String:
+		return "String"
+	case BlockString:
+		return "BlockString"
+	case Name:
+		return "Name"
+	case Bang:
+		return "!"
+	case Dollar:
+		return "$"
+	case Amp:
+		return "&"
+	case ParenL:
+		return "("
+	case ParenR:
+		return ")"
+	case Spread:
+		return "..."
+	case Colon:
+		return ":"
+	case Equal:
+		return "="
+	case At:
+		return "@"
+	case BracketR:
+		return "["
+	case BracketL:
+		return "]"
+	case Pipe:
+		return "|"
+	case BraceL:
+		return "{"
+	case BraceR:
+		return "}"
+	default:
+		return ""
 	}
 }
