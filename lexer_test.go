@@ -428,7 +428,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					Value: "0",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -445,7 +445,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					Value: "1",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -462,7 +462,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					Value: "9",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -479,7 +479,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					Value: "100",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -496,7 +496,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					Value: "-9",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -549,7 +549,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "0.1",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -566,7 +566,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "0.100",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -583,7 +583,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "0.0021",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -600,7 +600,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "123.0021",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -617,7 +617,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "-123.0021",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -634,7 +634,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 					Value: "0.0",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -687,7 +687,7 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 					Value: "1e50",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 			},
@@ -704,7 +704,41 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 					Value: "1.0e50",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src: &Source{
+				Body: "1.0e-50",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e-50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src: &Source{
+				Body: "1.0e+50",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e+50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
 					},
 				},
 			},

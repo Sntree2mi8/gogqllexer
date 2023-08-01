@@ -79,86 +79,11 @@ func (l *Lexer) NextToken() (Token, error) {
 			},
 		}, nil
 	case isNumber(currentRune):
-		isFloat := false
-		if isNegativeSign(rune(l.src.Body[l.endByteIndex])) {
-			l.endByteIndex++
-		}
+		kind, value, consumedByte, consumedLine := l.readNumber()
+		l.endByteIndex += consumedByte
+		l.line += consumedLine
 
-		if isZero(rune(l.src.Body[l.endByteIndex])) {
-			l.endByteIndex++
-			if l.endByteIndex < len(l.src.Body) && isDigit(rune(l.src.Body[l.endByteIndex])) {
-				return Token{
-					Kind:  Invalid,
-					Value: "invalid number token",
-					Position: Position{
-						Line:  l.line,
-						Start: l.startByteIndex,
-					},
-				}, nil
-			}
-		} else if isNonZeroDigit(rune(l.src.Body[l.endByteIndex])) {
-			l.endByteIndex++
-			for l.endByteIndex < len(l.src.Body) {
-				if isDigit(rune(l.src.Body[l.endByteIndex])) {
-					l.endByteIndex++
-				} else {
-					break
-				}
-			}
-		} else {
-			return Token{
-				Kind:  Invalid,
-				Value: "invalid number token",
-				Position: Position{
-					Line:  l.line,
-					Start: l.startByteIndex,
-				},
-			}, nil
-		}
-
-		if l.endByteIndex < len(l.src.Body) && isFractionalPart(rune(l.src.Body[l.endByteIndex])) {
-			l.endByteIndex++
-			isFloat = true
-			for l.endByteIndex < len(l.src.Body) {
-				if isDigit(rune(l.src.Body[l.endByteIndex])) {
-					l.endByteIndex++
-				} else {
-					break
-				}
-			}
-		}
-
-		if l.endByteIndex < len(l.src.Body) && isExponentPart(rune(l.src.Body[l.endByteIndex])) {
-			l.endByteIndex++
-			isFloat = true
-			for l.endByteIndex < len(l.src.Body) {
-				if isDigit(rune(l.src.Body[l.endByteIndex])) {
-					l.endByteIndex++
-				} else {
-					break
-				}
-			}
-		}
-
-		if isFloat {
-			return Token{
-				Kind:  Float,
-				Value: l.src.Body[l.startByteIndex:l.endByteIndex],
-				Position: Position{
-					Line:  l.line,
-					Start: l.startByteIndex,
-				},
-			}, nil
-		} else {
-			return Token{
-				Kind:  Int,
-				Value: l.src.Body[l.startByteIndex:l.endByteIndex],
-				Position: Position{
-					Line:  l.line,
-					Start: l.startByteIndex,
-				},
-			}, nil
-		}
+		return l.makeToken(kind, value), nil
 	case isStringValue(currentRune):
 		if l.endByteIndex+3 < len(l.src.Body) && l.src.Body[l.endByteIndex:l.endByteIndex+3] == `"""` {
 			kind, value, consumedByte, consumedLine := l.readStringBlockToken()
@@ -174,6 +99,61 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	return l.makeToken(Invalid, ""), nil
+}
+
+func (l *Lexer) readNumber() (kind Kind, value string, consumedByte int, consumedLine int) {
+	isFloat := false
+	if isNegativeSign(rune(l.src.Body[l.endByteIndex])) {
+		consumedByte++
+	}
+
+	if isZero(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+		consumedByte++
+		if l.endByteIndex+consumedByte < len(l.src.Body) && isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+			return Invalid, "", consumedByte, consumedLine
+		}
+	} else if isNonZeroDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+		consumedByte++
+		for l.endByteIndex+consumedByte < len(l.src.Body) {
+			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+				consumedByte++
+			} else {
+				break
+			}
+		}
+	} else {
+		return Invalid, "", consumedByte, consumedLine
+	}
+
+	if l.endByteIndex+consumedByte < len(l.src.Body) && isFractionalPart(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+		consumedByte++
+		isFloat = true
+		for l.endByteIndex+consumedByte < len(l.src.Body) {
+			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+				consumedByte++
+			} else {
+				break
+			}
+		}
+	}
+
+	if l.endByteIndex+consumedByte < len(l.src.Body) && isExponentPart(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+		consumedByte++
+		isFloat = true
+		for l.endByteIndex+consumedByte < len(l.src.Body) {
+			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) || isSign(rune(l.src.Body[l.endByteIndex+consumedByte])) {
+				consumedByte++
+			} else {
+				break
+			}
+		}
+	}
+
+	if isFloat {
+		return Float, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
+	} else {
+		return Int, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
+	}
 }
 
 func (l *Lexer) readPunctuatorToken() (kind Kind, value string, consumedByte int, consumedLine int) {
