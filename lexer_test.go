@@ -9,6 +9,141 @@ import (
 	"testing"
 )
 
+func TestLexer_NextToken_ReadSingleName(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "_query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "_query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "_0query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "_0query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "white space",
+			src: &Source{
+				Body: "  query  ",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "line feed",
+			src: &Source{
+				Body: "\nquery",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  2,
+						Start: 2,
+					},
+				},
+			},
+		},
+		{
+			name: "carriage return",
+			src: &Source{
+				Body: "\rquery",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  2,
+						Start: 2,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.src, strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
 func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 	tests := []struct {
 		name string

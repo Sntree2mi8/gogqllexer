@@ -64,35 +64,21 @@ func (l *Lexer) NextToken() (Token, error) {
 		case isLineTerminator(r):
 			l.startByteIndex += s
 			l.line++
-			nextR, nextS, err := l.ReadRune()
+			r, s, err = l.ReadRune()
 			if err != nil {
 				return l.makeEOFToken(), nil
 			}
-			if nextR == '\n' {
-				l.startByteIndex += nextS
+			if r == '\n' {
+				l.startByteIndex += s
 			} else {
 				if err = l.UnreadRune(); err != nil {
-					return Token{
-						Kind:  Invalid,
-						Value: "",
-						Position: Position{
-							Line:  l.line,
-							Start: l.startByteIndex,
-						},
-					}, err
+					return l.makeToken(Invalid, ""), err
 				}
 			}
 			continue
 		default:
 			if err = l.UnreadRune(); err != nil {
-				return Token{
-					Kind:  Invalid,
-					Value: "",
-					Position: Position{
-						Line:  l.line,
-						Start: l.startByteIndex,
-					},
-				}, err
+				return l.makeToken(Invalid, ""), err
 			}
 		}
 		break
@@ -101,22 +87,13 @@ func (l *Lexer) NextToken() (Token, error) {
 	// TODO: insignificant comma
 	currentRune, err := l.peek()
 	if err != nil {
-		return Token{
-			Kind:  Invalid,
-			Value: "",
-			Position: Position{
-				Line:  l.line,
-				Start: l.startByteIndex,
-			},
-		}, err
+		return l.makeToken(Invalid, ""), err
 	}
 	switch {
 	case isNameStart(currentRune):
-		kind, value, consumedByte, consumedLine := l.readNameToken()
-		l.endByteIndex += consumedByte
-		l.line += consumedLine
-
-		return l.makeToken(kind, value), nil
+		t, consumedByte := l.readNameToken()
+		l.startByteIndex += consumedByte
+		return t, nil
 	case isPunctuator(currentRune):
 		t, consumedByte := l.readPunctuatorToken()
 		l.startByteIndex += consumedByte
@@ -278,16 +255,22 @@ func (l *Lexer) readPunctuatorToken() (token Token, consumedByte int) {
 	}
 }
 
-func (l *Lexer) readNameToken() (kind Kind, value string, consumedByte int, consumedLine int) {
-	for l.endByteIndex+consumedByte < len(l.src.Body) {
-		if isNameContinue(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-			consumedByte++
-		} else {
-			break
+func (l *Lexer) readNameToken() (token Token, consumedByte int) {
+	for {
+		r, s, err := l.ReadRune()
+		if err != nil {
+			//EOF
+			return l.makeToken(Name, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 		}
+		if isNameContinue(r) {
+			consumedByte += s
+			continue
+		}
+		if err = l.UnreadRune(); err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		return l.makeToken(Name, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 	}
-
-	return Name, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
 }
 
 func (l *Lexer) readStringToken() (kind Kind, value string, consumedByte int, consumedLine int) {
