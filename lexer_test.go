@@ -637,10 +637,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -649,7 +646,6 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
-					t.Log(got)
 					break
 				}
 
@@ -775,10 +771,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -879,10 +872,7 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {

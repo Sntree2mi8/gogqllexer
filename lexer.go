@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 	"strconv"
-	"unicode/utf8"
 )
 
 type Lexer struct {
@@ -85,20 +84,24 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	// TODO: insignificant comma
-	currentRune, err := l.peek()
+	r, err := l.peek()
 	if err != nil {
 		return l.makeToken(Invalid, ""), err
 	}
 	switch {
-	case isNameStart(currentRune):
+	case isNameStart(r):
 		t, consumedByte := l.readNameToken()
 		l.startByteIndex += consumedByte
 		return t, nil
-	case isPunctuator(currentRune):
+	case isPunctuator(r):
 		t, consumedByte := l.readPunctuatorToken()
 		l.startByteIndex += consumedByte
 		return t, nil
-	case isComment(currentRune):
+	case isNumber(r):
+		t, consumedByte := l.readNumber()
+		l.startByteIndex += consumedByte
+		return t, nil
+	case isComment(r):
 		for l.endByteIndex < len(l.src.Body) {
 			if isLineTerminator(rune(l.src.Body[l.endByteIndex])) {
 				log.Println("line terminator")
@@ -115,13 +118,7 @@ func (l *Lexer) NextToken() (Token, error) {
 				Start: l.startByteIndex,
 			},
 		}, nil
-	case isNumber(currentRune):
-		kind, value, consumedByte, consumedLine := l.readNumber()
-		l.endByteIndex += consumedByte
-		l.line += consumedLine
-
-		return l.makeToken(kind, value), nil
-	case isStringValue(currentRune):
+	case isStringValue(r):
 		if l.endByteIndex+3 < len(l.src.Body) && l.src.Body[l.endByteIndex:l.endByteIndex+3] == `"""` {
 			kind, value, consumedByte, consumedLine := l.readStringBlockToken()
 			l.endByteIndex += consumedByte
@@ -141,57 +138,96 @@ func (l *Lexer) NextToken() (Token, error) {
 func (l *Lexer) peek() (rune, error) {
 	r, _, err := l.ReadRune()
 	if err != nil {
-		return utf8.RuneError, err
+		return 0, err
 	}
-	if err = l.UnreadRune(); err != nil {
-		return utf8.RuneError, err
-	}
+	_ = l.UnreadRune()
 
 	return r, nil
 }
 
-func (l *Lexer) readNumber() (kind Kind, value string, consumedByte int, consumedLine int) {
+func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	isFloat := false
-	if isNegativeSign(rune(l.src.Body[l.endByteIndex])) {
-		consumedByte++
+
+	r, s, err := l.ReadRune()
+	if err != nil {
+		return l.makeEOFToken(), consumedByte
+	}
+	consumedByte += s
+
+	if isNegativeSign(r) {
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		consumedByte += s
 	}
 
-	if isZero(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-		consumedByte++
-		if l.endByteIndex+consumedByte < len(l.src.Body) && isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-			return Invalid, "", consumedByte, consumedLine
+	if isZero(r) {
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 		}
-	} else if isNonZeroDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-		consumedByte++
-		for l.endByteIndex+consumedByte < len(l.src.Body) {
-			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-				consumedByte++
+		consumedByte += s
+		if isDigit(r) {
+			return l.makeToken(Invalid, ""), consumedByte + 1
+		}
+	} else if isNonZeroDigit(r) {
+		for {
+			r, s, err = l.ReadRune()
+			if err != nil {
+				return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+			}
+			consumedByte += s
+			if isDigit(r) {
+				continue
 			} else {
 				break
 			}
 		}
 	} else {
-		return Invalid, "", consumedByte, consumedLine
+		return l.makeToken(Invalid, ""), consumedByte
 	}
 
-	if l.endByteIndex+consumedByte < len(l.src.Body) && isFractionalPart(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-		consumedByte++
+	if isFractionalPart(r) {
 		isFloat = true
-		for l.endByteIndex+consumedByte < len(l.src.Body) {
-			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-				consumedByte++
+		for {
+			r, s, err = l.ReadRune()
+			if err != nil {
+				break
+			}
+			consumedByte += s
+			if isDigit(r) {
+				continue
 			} else {
 				break
 			}
 		}
 	}
 
-	if l.endByteIndex+consumedByte < len(l.src.Body) && isExponentPart(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-		consumedByte++
+	if isExponentPart(r) {
 		isFloat = true
-		for l.endByteIndex+consumedByte < len(l.src.Body) {
-			if isDigit(rune(l.src.Body[l.endByteIndex+consumedByte])) || isSign(rune(l.src.Body[l.endByteIndex+consumedByte])) {
-				consumedByte++
+
+		// check opt sign
+		r, err = l.peek()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		if isSign(r) {
+			r, s, err = l.ReadRune()
+			if err != nil {
+				return l.makeToken(Invalid, ""), consumedByte
+			}
+			consumedByte += s
+		}
+
+		for {
+			r, s, err = l.ReadRune()
+			if err != nil {
+				break
+			}
+			consumedByte += s
+			if isDigit(r) {
+				continue
 			} else {
 				break
 			}
@@ -199,9 +235,9 @@ func (l *Lexer) readNumber() (kind Kind, value string, consumedByte int, consume
 	}
 
 	if isFloat {
-		return Float, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
+		return l.makeToken(Float, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 	} else {
-		return Int, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
+		return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 	}
 }
 
