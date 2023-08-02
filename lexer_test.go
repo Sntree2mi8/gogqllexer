@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -255,10 +256,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1379,7 +1377,7 @@ func TestLexer(t *testing.T) {
 		Name: "testdata/schema/schema.graphqls",
 	}
 
-	l := New(src)
+	l := New(src, strings.NewReader(string(b)))
 
 	tokens := make([]Token, 0)
 	for {

@@ -1,21 +1,39 @@
 package gogqllexer
 
 import (
+	"io"
 	"log"
 	"strconv"
+	"unicode/utf8"
 )
 
 type Lexer struct {
+	io.RuneScanner
+
 	src            *Source
 	line           int
 	startByteIndex int
 	endByteIndex   int
 }
 
-func New(src *Source) *Lexer {
+func New(src *Source, scanner io.RuneScanner) *Lexer {
 	return &Lexer{
-		src:  src,
-		line: 1,
+		RuneScanner:    scanner,
+		src:            src,
+		line:           1,
+		startByteIndex: 0,
+		endByteIndex:   0,
+	}
+}
+
+func (l *Lexer) makeEOFToken() Token {
+	return Token{
+		Kind:  EOF,
+		Value: "",
+		Position: Position{
+			Line:  l.line,
+			Start: l.startByteIndex,
+		},
 	}
 }
 
@@ -31,23 +49,67 @@ func (l *Lexer) makeToken(kind Kind, value string) Token {
 }
 
 func (l *Lexer) NextToken() (Token, error) {
-	// TODO: ignoreTokensまだまだある
-	l.skipIgnoreTokens()
-	l.startByteIndex = l.endByteIndex
+	// skip ignore tokens
+	for {
+		r, s, err := l.ReadRune()
+		if err != nil {
+			return l.makeEOFToken(), nil
+		}
 
-	if l.endByteIndex >= len(l.src.Body) {
+		// TODO: more ignore tokens
+		switch {
+		case isWhiteSpace(r):
+			l.startByteIndex += s
+			continue
+		case isLineTerminator(r):
+			l.startByteIndex += s
+			l.line++
+			nextR, nextS, err := l.ReadRune()
+			if err != nil {
+				return l.makeEOFToken(), nil
+			}
+			if nextR == '\n' {
+				l.startByteIndex += nextS
+			} else {
+				if err = l.UnreadRune(); err != nil {
+					return Token{
+						Kind:  Invalid,
+						Value: "",
+						Position: Position{
+							Line:  l.line,
+							Start: l.startByteIndex,
+						},
+					}, err
+				}
+			}
+			continue
+		default:
+			if err = l.UnreadRune(); err != nil {
+				return Token{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  l.line,
+						Start: l.startByteIndex,
+					},
+				}, err
+			}
+		}
+		break
+	}
+
+	// TODO: insignificant comma
+	currentRune, err := l.peek()
+	if err != nil {
 		return Token{
-			Kind:  EOF,
+			Kind:  Invalid,
 			Value: "",
 			Position: Position{
 				Line:  l.line,
 				Start: l.startByteIndex,
 			},
-		}, nil
+		}, err
 	}
-
-	// TODO: insignificant comma
-	currentRune := rune(l.src.Body[l.startByteIndex])
 	switch {
 	case isNameStart(currentRune):
 		kind, value, consumedByte, consumedLine := l.readNameToken()
@@ -56,11 +118,9 @@ func (l *Lexer) NextToken() (Token, error) {
 
 		return l.makeToken(kind, value), nil
 	case isPunctuator(currentRune):
-		kind, value, consumedByte, consumedLine := l.readPunctuatorToken()
-		l.endByteIndex += consumedByte
-		l.line += consumedLine
-
-		return l.makeToken(kind, value), nil
+		t, consumedByte := l.readPunctuatorToken()
+		l.startByteIndex += consumedByte
+		return t, nil
 	case isComment(currentRune):
 		for l.endByteIndex < len(l.src.Body) {
 			if isLineTerminator(rune(l.src.Body[l.endByteIndex])) {
@@ -99,6 +159,18 @@ func (l *Lexer) NextToken() (Token, error) {
 	}
 
 	return l.makeToken(Invalid, ""), nil
+}
+
+func (l *Lexer) peek() (rune, error) {
+	r, _, err := l.ReadRune()
+	if err != nil {
+		return utf8.RuneError, err
+	}
+	if err = l.UnreadRune(); err != nil {
+		return utf8.RuneError, err
+	}
+
+	return r, nil
 }
 
 func (l *Lexer) readNumber() (kind Kind, value string, consumedByte int, consumedLine int) {
@@ -156,43 +228,53 @@ func (l *Lexer) readNumber() (kind Kind, value string, consumedByte int, consume
 	}
 }
 
-func (l *Lexer) readPunctuatorToken() (kind Kind, value string, consumedByte int, consumedLine int) {
-	consumedByte = 1
-	switch l.src.Body[l.startByteIndex] {
+func (l *Lexer) readPunctuatorToken() (token Token, consumedByte int) {
+	r, consumedByte, err := l.ReadRune()
+	if err != nil {
+		return l.makeEOFToken(), consumedByte
+	}
+
+	switch r {
 	case '!':
-		return Bang, "", consumedByte, consumedLine
+		return l.makeToken(Bang, ""), consumedByte
 	case '$':
-		return Dollar, "", consumedByte, consumedLine
+		return l.makeToken(Dollar, ""), consumedByte
 	case '&':
-		return Amp, "", consumedByte, consumedLine
+		return l.makeToken(Amp, ""), consumedByte
 	case '(':
-		return ParenL, "", consumedByte, consumedLine
+		return l.makeToken(ParenL, ""), consumedByte
 	case ')':
-		return ParenR, "", consumedByte, consumedLine
+		return l.makeToken(ParenR, ""), consumedByte
 	case '.':
-		if len(l.src.Body) <= l.startByteIndex+consumedByte+2 && l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte+2] == "..." {
-			consumedByte += 2
-			return Spread, "", consumedByte, consumedLine
+		for i := 0; i < 2; i++ {
+			r, s, err := l.ReadRune()
+			if err != nil {
+				return l.makeToken(Invalid, ""), consumedByte
+			}
+			consumedByte += s
+			if r != '.' {
+				return l.makeToken(Invalid, ""), consumedByte
+			}
 		}
-		return Invalid, "", consumedByte, consumedLine
+		return l.makeToken(Spread, ""), consumedByte
 	case ':':
-		return Colon, "", consumedByte, consumedLine
+		return l.makeToken(Colon, ""), consumedByte
 	case '=':
-		return Equal, "", consumedByte, consumedLine
+		return l.makeToken(Equal, ""), consumedByte
 	case '@':
-		return At, "", consumedByte, consumedLine
+		return l.makeToken(At, ""), consumedByte
 	case '[':
-		return BracketL, "", consumedByte, consumedLine
+		return l.makeToken(BracketL, ""), consumedByte
 	case ']':
-		return BracketR, "", consumedByte, consumedLine
+		return l.makeToken(BracketR, ""), consumedByte
 	case '{':
-		return BraceL, "", consumedByte, consumedLine
+		return l.makeToken(BraceL, ""), consumedByte
 	case '}':
-		return BraceR, "", consumedByte, consumedLine
+		return l.makeToken(BraceR, ""), consumedByte
 	case '|':
-		return Pipe, "", consumedByte, consumedLine
+		return l.makeToken(Pipe, ""), consumedByte
 	default:
-		return Invalid, "", consumedByte, consumedLine
+		return l.makeToken(Invalid, ""), consumedByte
 	}
 }
 
@@ -315,25 +397,6 @@ BlockStringReadLoop:
 	}
 
 	return Invalid, "", consumedByte, consumedLine
-}
-
-// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
-func (l *Lexer) skipIgnoreTokens() {
-	for l.endByteIndex < len(l.src.Body) {
-		r := rune(l.src.Body[l.endByteIndex])
-		switch {
-		case isWhiteSpace(r):
-			l.endByteIndex++
-		case isLineTerminator(r):
-			l.line++
-			l.endByteIndex++
-			if l.endByteIndex < len(l.src.Body) && rune(l.src.Body[l.endByteIndex]) == '\n' {
-				l.endByteIndex++
-			}
-		default:
-			return
-		}
-	}
 }
 
 // https://spec.graphql.org/October2021/#sec-Line-Terminators
