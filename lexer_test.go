@@ -543,7 +543,8 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 	}
 }
 
-func TestLexer_NextToken_Int(t *testing.T) {
+// https://spec.graphql.org/October2021/#sec-Int-Value
+func TestLexer_NextToken_ReadInt(t *testing.T) {
 	tests := []struct {
 		name string
 		src  *Source
@@ -650,6 +651,158 @@ func TestLexer_NextToken_Int(t *testing.T) {
 				}
 
 				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Int-Value
+func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "IntValue must not any leading 0",
+			src: &Source{
+				Body: "0123",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with dot",
+			src: &Source{
+				Body: "1.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with dot",
+			src: &Source{
+				Body: "0.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "1a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "0a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "1_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "0_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.src, strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
 			ok := assert.Equal(t, tt.want, gotTokens)

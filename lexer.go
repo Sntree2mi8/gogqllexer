@@ -168,8 +168,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
 		}
 		consumedByte += s
-		if isDigit(r) {
-			return l.makeToken(Invalid, ""), consumedByte + 1
+		if isDigit(r) || isNameStart(r) && !isExponentPart(r) {
+			return l.makeToken(Invalid, ""), consumedByte
 		}
 	} else if isNonZeroDigit(r) {
 		for {
@@ -180,6 +180,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			consumedByte += s
 			if isDigit(r) {
 				continue
+			} else if isNameStart(r) && !isExponentPart(r) {
+				return l.makeToken(Invalid, ""), consumedByte
 			} else {
 				break
 			}
@@ -190,6 +192,16 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 
 	if isFractionalPart(r) {
 		isFloat = true
+		// fractional part must be followed by at least one digit
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		consumedByte += s
+		if !isDigit(r) {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+
 		for {
 			r, s, err = l.ReadRune()
 			if err != nil {
