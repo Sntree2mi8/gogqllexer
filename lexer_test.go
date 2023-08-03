@@ -813,6 +813,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#sec-Float-Value
 func TestLexer_NextToken_Float(t *testing.T) {
 	tests := []struct {
 		name string
@@ -948,6 +949,92 @@ func TestLexer_NextToken_Float(t *testing.T) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#sec-Float-Value
+func TestLexer_NextToken_Float_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "FloatToken can't end with dot",
+			src: &Source{
+				Body: "0.1.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src: &Source{
+				Body: "0.1a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src: &Source{
+				Body: "0.1_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.src, strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Float-Value
 func TestLexer_NextToken_Exponent(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1035,6 +1122,90 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 				}
 				if got.Kind == EOF {
 					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Float-Value
+func TestLexer_NextToken_Exponent_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "ExponentToken can't end with dot",
+			src: &Source{
+				Body: "1e50.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src: &Source{
+				Body: "1e50a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src: &Source{
+				Body: "1e50_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.src, strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
 					break
 				}
 

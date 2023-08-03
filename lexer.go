@@ -210,6 +210,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			consumedByte += s
 			if isDigit(r) {
 				continue
+			} else if (isNameStart(r) && !isExponentPart(r)) || r == '.' {
+				return l.makeToken(Invalid, ""), consumedByte
 			} else {
 				break
 			}
@@ -240,7 +242,11 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			consumedByte += s
 			if isDigit(r) {
 				continue
+			} else if isNameStart(r) || r == '.' {
+				return l.makeToken(Invalid, ""), consumedByte
 			} else {
+				_ = l.UnreadRune()
+				consumedByte -= s
 				break
 			}
 		}
