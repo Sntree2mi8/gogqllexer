@@ -7,16 +7,14 @@ import (
 type Lexer struct {
 	io.RuneScanner
 
-	src            *Source
 	line           int
 	startByteIndex int
 	endByteIndex   int
 }
 
-func New(src *Source, scanner io.RuneScanner) *Lexer {
+func New(scanner io.RuneScanner) *Lexer {
 	return &Lexer{
 		RuneScanner:    scanner,
-		src:            src,
 		line:           1,
 		startByteIndex: 0,
 		endByteIndex:   0,
@@ -124,11 +122,14 @@ func (l *Lexer) peek() (rune, error) {
 }
 
 func (l *Lexer) readComment() (token Token, consumedByte int) {
+	value := make([]rune, 0)
+
 	r, s, err := l.ReadRune()
 	if err != nil {
 		return l.makeEOFToken(), consumedByte
 	}
 	consumedByte += s
+	value = append(value, r)
 
 	if r != '#' {
 		return l.makeToken(Invalid, ""), consumedByte
@@ -145,14 +146,15 @@ ReadCommentLoop:
 		case isLineTerminator(r), r < 0x0020 && r != '\t':
 			break ReadCommentLoop
 		default:
-			_, s, _ = l.ReadRune()
+			r, s, _ = l.ReadRune()
 			consumedByte += s
+			value = append(value, r)
 		}
 	}
 
 	return Token{
 		Kind:  Comment,
-		Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+		Value: string(value),
 		Position: Position{
 			Line:  l.line,
 			Start: l.startByteIndex,
@@ -162,12 +164,14 @@ ReadCommentLoop:
 
 func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	isFloat := false
+	value := make([]rune, 0)
 
 	r, s, err := l.ReadRune()
 	if err != nil {
 		return l.makeEOFToken(), consumedByte
 	}
 	consumedByte += s
+	value = append(value, r)
 
 	if isNegativeSign(r) {
 		r, s, err = l.ReadRune()
@@ -175,14 +179,17 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		consumedByte += s
+		value = append(value, r)
 	}
 
 	if isZero(r) {
 		r, s, err = l.ReadRune()
 		if err != nil {
-			return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+			return l.makeToken(Int, string(value)), consumedByte
 		}
 		consumedByte += s
+		value = append(value, r)
+
 		if isDigit(r) || isNameStart(r) && !isExponentPart(r) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
@@ -190,9 +197,11 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 		for {
 			r, s, err = l.ReadRune()
 			if err != nil {
-				return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+				return l.makeToken(Int, string(value)), consumedByte
 			}
 			consumedByte += s
+			value = append(value, r)
+
 			if isDigit(r) {
 				continue
 			} else if isNameStart(r) && !isExponentPart(r) {
@@ -213,6 +222,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		consumedByte += s
+		value = append(value, r)
+
 		if !isDigit(r) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
@@ -223,6 +234,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 				break
 			}
 			consumedByte += s
+			value = append(value, r)
+
 			if isDigit(r) {
 				continue
 			} else if (isNameStart(r) && !isExponentPart(r)) || r == '.' {
@@ -247,6 +260,7 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 				return l.makeToken(Invalid, ""), consumedByte
 			}
 			consumedByte += s
+			value = append(value, r)
 		}
 
 		for {
@@ -255,6 +269,8 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 				break
 			}
 			consumedByte += s
+			value = append(value, r)
+
 			if isDigit(r) {
 				continue
 			} else if isNameStart(r) || r == '.' {
@@ -268,9 +284,9 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	}
 
 	if isFloat {
-		return l.makeToken(Float, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+		return l.makeToken(Float, string(value)), consumedByte
 	} else {
-		return l.makeToken(Int, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+		return l.makeToken(Int, string(value)), consumedByte
 	}
 }
 
@@ -325,29 +341,32 @@ func (l *Lexer) readPunctuatorToken() (token Token, consumedByte int) {
 }
 
 func (l *Lexer) readNameToken() (token Token, consumedByte int) {
+	value := make([]rune, 0)
 	for {
 		r, s, err := l.ReadRune()
 		if err != nil {
 			//EOF
-			return l.makeToken(Name, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+			return l.makeToken(Name, string(value)), consumedByte
 		}
 		if isNameContinue(r) {
 			consumedByte += s
+			value = append(value, r)
 			continue
 		}
-		if err = l.UnreadRune(); err != nil {
-			return l.makeToken(Invalid, ""), consumedByte
-		}
-		return l.makeToken(Name, l.src.Body[l.startByteIndex:l.startByteIndex+consumedByte]), consumedByte
+		_ = l.UnreadRune()
+
+		return l.makeToken(Name, string(value)), consumedByte
 	}
 }
 
 func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine int) {
+	value := make([]rune, 0)
 	r, s, err := l.ReadRune()
 	if err != nil {
 		return l.makeEOFToken(), consumedByte, consumedLine
 	}
 	consumedByte += s
+	value = append(value, r)
 
 	if r != '"' {
 		return l.makeToken(Invalid, ""), consumedByte, consumedLine
@@ -355,10 +374,10 @@ func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine i
 
 	isBlockString := false
 
-	makeStringToken := func() Token {
+	makeStringToken := func(v string) Token {
 		return Token{
 			Kind:  String,
-			Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+			Value: v,
 			Position: Position{
 				Line:  l.line + consumedLine,
 				Start: l.startByteIndex + 1,
@@ -366,10 +385,10 @@ func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine i
 		}
 	}
 
-	makeBlockStringToken := func() Token {
+	makeBlockStringToken := func(v string) Token {
 		return Token{
 			Kind:  BlockString,
-			Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+			Value: v,
 			Position: Position{
 				Line:  l.line + consumedLine,
 				Start: l.startByteIndex + 1,
@@ -384,6 +403,7 @@ StringReadLoop:
 			return l.makeToken(Invalid, ""), consumedByte, consumedLine
 		}
 		consumedByte += s
+		value = append(value, r)
 
 		switch r {
 		case '\n', '\r':
@@ -391,15 +411,16 @@ StringReadLoop:
 		case '"':
 			r, err = l.peek()
 			if err != nil {
-				return makeStringToken(), consumedByte, consumedLine
+				return makeStringToken(string(value)), consumedByte, consumedLine
 			}
 			if r == '"' {
 				isBlockString = true
-				_, s, _ = l.ReadRune()
+				r, s, _ = l.ReadRune()
 				consumedByte += s
+				value = append(value, r)
 				break StringReadLoop
 			} else {
-				return makeStringToken(), consumedByte, consumedLine
+				return makeStringToken(string(value)), consumedByte, consumedLine
 			}
 		case '\\':
 			r, s, err = l.ReadRune()
@@ -407,6 +428,7 @@ StringReadLoop:
 				return l.makeToken(Invalid, ""), consumedByte, consumedLine
 			}
 			consumedByte += s
+			value = append(value, r)
 
 			switch r {
 			default:
@@ -418,6 +440,7 @@ StringReadLoop:
 						return l.makeToken(Invalid, ""), consumedByte, consumedLine
 					}
 					consumedByte += s
+					value = append(value, r)
 
 					if !isHexDigit(r) {
 						return l.makeToken(Invalid, ""), consumedByte, consumedLine
@@ -440,6 +463,7 @@ StringReadLoop:
 				return l.makeToken(Invalid, ""), consumedByte, consumedLine
 			}
 			consumedByte += s
+			value = append(value, r)
 
 			switch r {
 			case '\n':
@@ -449,8 +473,9 @@ StringReadLoop:
 				if r, err = l.peek(); err != nil {
 					return l.makeToken(Invalid, ""), consumedByte, consumedLine
 				} else if r == '\n' {
-					_, s, _ = l.ReadRune()
+					r, s, _ = l.ReadRune()
 					consumedByte += s
+					value = append(value, r)
 				}
 			case '"':
 				for i := 0; i < 2; i++ {
@@ -459,17 +484,19 @@ StringReadLoop:
 						return l.makeToken(Invalid, ""), consumedByte, consumedLine
 					}
 					consumedByte += s
+					value = append(value, r)
 					if r != '"' {
 						return l.makeToken(Invalid, ""), consumedByte, consumedLine
 					}
 				}
-				return makeBlockStringToken(), consumedByte, consumedLine
+				return makeBlockStringToken(string(value)), consumedByte, consumedLine
 			case '\\':
 				r, s, err = l.ReadRune()
 				if err != nil {
 					return l.makeToken(Invalid, ""), consumedByte, consumedLine
 				}
 				consumedByte += s
+				value = append(value, r)
 
 				switch r {
 				default:
@@ -481,6 +508,7 @@ StringReadLoop:
 							return l.makeToken(Invalid, ""), consumedByte, consumedLine
 						}
 						consumedByte += s
+						value = append(value, r)
 
 						if !isHexDigit(r) {
 							return l.makeToken(Invalid, ""), consumedByte, consumedLine
