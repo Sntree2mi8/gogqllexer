@@ -9,7 +9,6 @@ type Lexer struct {
 
 	line           int
 	startByteIndex int
-	endByteIndex   int
 }
 
 func New(scanner io.RuneScanner) *Lexer {
@@ -17,7 +16,6 @@ func New(scanner io.RuneScanner) *Lexer {
 		RuneScanner:    scanner,
 		line:           1,
 		startByteIndex: 0,
-		endByteIndex:   0,
 	}
 }
 
