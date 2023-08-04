@@ -299,6 +299,16 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#sec-Punctuators
+func isPunctuator(r rune) bool {
+	switch r {
+	case '!', '$', '&', '(', ')', '.', ':', '=', '@', '[', ']', '{', '}', '|':
+		return true
+	default:
+		return false
+	}
+}
+
 func (l *Lexer) readPunctuatorToken() (token Token, consumedByte int) {
 	r, consumedByte, err := l.ReadRune()
 	if err != nil {
