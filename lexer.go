@@ -3,7 +3,6 @@ package gogqllexer
 import (
 	"io"
 	"log"
-	"strconv"
 )
 
 type Lexer struct {
@@ -101,6 +100,11 @@ func (l *Lexer) NextToken() (Token, error) {
 		t, consumedByte := l.readNumber()
 		l.startByteIndex += consumedByte
 		return t, nil
+	case isStringValue(r):
+		t, consumedByte, consumedLine := l.readStringToken()
+		l.startByteIndex += consumedByte
+		l.line += consumedLine
+		return t, nil
 	case isComment(r):
 		for l.endByteIndex < len(l.src.Body) {
 			if isLineTerminator(rune(l.src.Body[l.endByteIndex])) {
@@ -118,18 +122,6 @@ func (l *Lexer) NextToken() (Token, error) {
 				Start: l.startByteIndex,
 			},
 		}, nil
-	case isStringValue(r):
-		if l.endByteIndex+3 < len(l.src.Body) && l.src.Body[l.endByteIndex:l.endByteIndex+3] == `"""` {
-			kind, value, consumedByte, consumedLine := l.readStringBlockToken()
-			l.endByteIndex += consumedByte
-			l.line += consumedLine
-			return l.makeToken(kind, value), nil
-		} else {
-			kind, value, consumedByte, consumedLine := l.readStringToken()
-			l.endByteIndex += consumedByte
-			l.line += consumedLine
-			return l.makeToken(kind, value), nil
-		}
 	}
 
 	return l.makeToken(Invalid, ""), nil
@@ -327,113 +319,162 @@ func (l *Lexer) readNameToken() (token Token, consumedByte int) {
 	}
 }
 
-func (l *Lexer) readStringToken() (kind Kind, value string, consumedByte int, consumedLine int) {
-	// consumedByte initial value is 1 because of skipping double quote
-	consumedByte = 1
+func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine int) {
+	r, s, err := l.ReadRune()
+	if err != nil {
+		return l.makeEOFToken(), consumedByte, consumedLine
+	}
+	consumedByte += s
+
+	if r != '"' {
+		return l.makeToken(Invalid, ""), consumedByte, consumedLine
+	}
+
+	isBlockString := false
+
+	makeStringToken := func() Token {
+		return Token{
+			Kind:  String,
+			Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+			Position: Position{
+				Line:  l.line + consumedLine,
+				Start: l.startByteIndex + 1,
+			},
+		}
+	}
+
+	makeBlockStringToken := func() Token {
+		return Token{
+			Kind:  BlockString,
+			Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+			Position: Position{
+				Line:  l.line + consumedLine,
+				Start: l.startByteIndex + 1,
+			},
+		}
+	}
 
 StringReadLoop:
-	for l.endByteIndex+consumedByte < len(l.src.Body) {
-		switch rune(l.src.Body[l.endByteIndex+consumedByte]) {
+	for {
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte, consumedLine
+		}
+		consumedByte += s
+
+		switch r {
 		case '\n', '\r':
-			consumedByte++
-			break StringReadLoop
+			return l.makeToken(Invalid, ""), consumedByte, consumedLine
 		case '"':
-			consumedByte++
-			return String, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
-		case '\\':
-			consumedByte++
-			if l.endByteIndex+consumedByte < len(l.src.Body) {
-				nextRune := rune(l.src.Body[l.endByteIndex+consumedByte])
-				switch nextRune {
-				case 'u':
-					consumedByte++
-					if l.endByteIndex+consumedByte+4 >= len(l.src.Body) {
-						break StringReadLoop
-					}
-					_, err := strconv.ParseUint(l.src.Body[l.endByteIndex+consumedByte:l.endByteIndex+consumedByte+4], 16, 64)
-					if err != nil {
-						break StringReadLoop
-					}
-					consumedByte += 4
-				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-					consumedByte++
-				default:
-					consumedByte++
-					break StringReadLoop
-				}
-			} else {
+			r, err = l.peek()
+			if err != nil {
+				return makeStringToken(), consumedByte, consumedLine
+			}
+			if r == '"' {
+				isBlockString = true
+				_, s, _ = l.ReadRune()
+				consumedByte += s
 				break StringReadLoop
+			} else {
+				return makeStringToken(), consumedByte, consumedLine
+			}
+		case '\\':
+			r, s, err = l.ReadRune()
+			if err != nil {
+				return l.makeToken(Invalid, ""), consumedByte, consumedLine
+			}
+			consumedByte += s
+
+			switch r {
+			default:
+				return l.makeToken(Invalid, ""), consumedByte, consumedLine
+			case 'u':
+				for i := 0; i < 4; i++ {
+					r, s, err = l.ReadRune()
+					if err != nil {
+						return l.makeToken(Invalid, ""), consumedByte, consumedLine
+					}
+					consumedByte += s
+
+					if !isHexDigit(r) {
+						return l.makeToken(Invalid, ""), consumedByte, consumedLine
+					}
+				}
+			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+				break
 			}
 		default:
-			if rune(l.src.Body[l.endByteIndex+consumedByte]) < 0x0020 && rune(l.src.Body[l.endByteIndex+consumedByte]) != '\t' {
-				consumedByte++
-				break StringReadLoop
+			if r < 0x0020 && r != '\t' {
+				return l.makeToken(Invalid, ""), consumedByte, consumedLine
 			}
-			consumedByte++
 		}
 	}
 
-	return Invalid, "", consumedByte, consumedLine
-}
-
-func (l *Lexer) readStringBlockToken() (kind Kind, value string, consumedByte int, consumedLine int) {
-	// consumedByte initial value is 3 because of skipping triple double quote
-	consumedByte = 3
-
-BlockStringReadLoop:
-	for l.endByteIndex+consumedByte < len(l.src.Body) {
-		switch rune(l.src.Body[l.endByteIndex+consumedByte]) {
-		case '\n':
-			consumedByte++
-			consumedLine++
-		case '\r':
-			consumedByte++
-			consumedLine++
-			if l.endByteIndex+consumedByte < len(l.src.Body) && rune(l.src.Body[l.endByteIndex+consumedByte]) == '\n' {
-				consumedByte++
+	if isBlockString {
+		for {
+			r, s, err = l.ReadRune()
+			if err != nil {
+				return l.makeToken(Invalid, ""), consumedByte, consumedLine
 			}
-		case '"':
-			if l.endByteIndex+consumedByte+3 <= len(l.src.Body) && l.src.Body[l.endByteIndex+consumedByte:l.endByteIndex+consumedByte+3] == `"""` {
-				consumedByte += 3
-				return BlockString, l.src.Body[l.startByteIndex : l.endByteIndex+consumedByte], consumedByte, consumedLine
-			} else {
-				consumedByte++
-			}
-		case '\\':
-			consumedByte++
-			if l.endByteIndex+consumedByte < len(l.src.Body) {
-				nextRune := rune(l.src.Body[l.endByteIndex+consumedByte])
-				switch nextRune {
-				case 'u':
-					consumedByte++
-					if l.endByteIndex+consumedByte+4 >= len(l.src.Body) {
-						break BlockStringReadLoop
-					}
-					_, err := strconv.ParseUint(l.src.Body[l.endByteIndex+consumedByte:l.endByteIndex+consumedByte+4], 16, 64)
-					if err != nil {
-						break BlockStringReadLoop
-					}
-					consumedByte += 4
-				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-					consumedByte++
-				default:
-					consumedByte++
-					break BlockStringReadLoop
+			consumedByte += s
+
+			switch r {
+			case '\n':
+				consumedLine++
+			case '\r':
+				consumedLine++
+				if r, err = l.peek(); err != nil {
+					return l.makeToken(Invalid, ""), consumedByte, consumedLine
+				} else if r == '\n' {
+					_, s, _ = l.ReadRune()
+					consumedByte += s
 				}
-			} else {
-				break BlockStringReadLoop
+			case '"':
+				for i := 0; i < 2; i++ {
+					r, s, err = l.ReadRune()
+					if err != nil {
+						return l.makeToken(Invalid, ""), consumedByte, consumedLine
+					}
+					consumedByte += s
+					if r != '"' {
+						return l.makeToken(Invalid, ""), consumedByte, consumedLine
+					}
+				}
+				return makeBlockStringToken(), consumedByte, consumedLine
+			case '\\':
+				r, s, err = l.ReadRune()
+				if err != nil {
+					return l.makeToken(Invalid, ""), consumedByte, consumedLine
+				}
+				consumedByte += s
+
+				switch r {
+				default:
+					return l.makeToken(Invalid, ""), consumedByte, consumedLine
+				case 'u':
+					for i := 0; i < 4; i++ {
+						r, s, err = l.ReadRune()
+						if err != nil {
+							return l.makeToken(Invalid, ""), consumedByte, consumedLine
+						}
+						consumedByte += s
+
+						if !isHexDigit(r) {
+							return l.makeToken(Invalid, ""), consumedByte, consumedLine
+						}
+					}
+				case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+					break
+				}
+			default:
+				if r < 0x0020 && r != '\t' && r != '\n' && r != '\r' {
+					return l.makeToken(Invalid, ""), consumedByte, consumedLine
+				}
 			}
-		default:
-			r := rune(l.src.Body[l.endByteIndex+consumedByte])
-			if r < 0x0020 && r != '\t' && r != '\n' && r != '\r' {
-				consumedByte++
-				break BlockStringReadLoop
-			}
-			consumedByte++
 		}
 	}
 
-	return Invalid, "", consumedByte, consumedLine
+	return l.makeToken(Invalid, ""), consumedByte, consumedLine
 }
 
 // https://spec.graphql.org/October2021/#sec-Line-Terminators

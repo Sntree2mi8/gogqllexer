@@ -1367,10 +1367,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1662,10 +1659,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1782,10 +1776,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
