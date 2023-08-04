@@ -130,6 +130,11 @@ func (l *Lexer) peek() (rune, error) {
 	return r, nil
 }
 
+// https://spec.graphql.org/October2021/#sec-Comments
+func isComment(r rune) bool {
+	return r == '#'
+}
+
 func (l *Lexer) readComment() (token Token, consumedByte int) {
 	value := make([]rune, 0)
 
