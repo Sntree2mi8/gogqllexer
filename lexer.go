@@ -2,7 +2,6 @@ package gogqllexer
 
 import (
 	"io"
-	"log"
 )
 
 type Lexer struct {
@@ -82,7 +81,6 @@ func (l *Lexer) NextToken() (Token, error) {
 		break
 	}
 
-	// TODO: insignificant comma
 	r, err := l.peek()
 	if err != nil {
 		return l.makeToken(Invalid, ""), err
@@ -106,22 +104,10 @@ func (l *Lexer) NextToken() (Token, error) {
 		l.line += consumedLine
 		return t, nil
 	case isComment(r):
-		for l.endByteIndex < len(l.src.Body) {
-			if isLineTerminator(rune(l.src.Body[l.endByteIndex])) {
-				log.Println("line terminator")
-				break
-			} else {
-				l.endByteIndex++
-			}
-		}
-		return Token{
-			Kind:  Comment,
-			Value: l.src.Body[l.startByteIndex:l.endByteIndex],
-			Position: Position{
-				Line:  l.line,
-				Start: l.startByteIndex,
-			},
-		}, nil
+		t, consumedByte := l.readComment()
+		l.startByteIndex += consumedByte
+		return t, nil
+	default:
 	}
 
 	return l.makeToken(Invalid, ""), nil
@@ -135,6 +121,43 @@ func (l *Lexer) peek() (rune, error) {
 	_ = l.UnreadRune()
 
 	return r, nil
+}
+
+func (l *Lexer) readComment() (token Token, consumedByte int) {
+	r, s, err := l.ReadRune()
+	if err != nil {
+		return l.makeEOFToken(), consumedByte
+	}
+	consumedByte += s
+
+	if r != '#' {
+		return l.makeToken(Invalid, ""), consumedByte
+	}
+
+ReadCommentLoop:
+	for {
+		r, err = l.peek()
+		if err != nil {
+			break
+		}
+
+		switch {
+		case isLineTerminator(r), r < 0x0020 && r != '\t':
+			break ReadCommentLoop
+		default:
+			_, s, _ = l.ReadRune()
+			consumedByte += s
+		}
+	}
+
+	return Token{
+		Kind:  Comment,
+		Value: l.src.Body[l.startByteIndex : l.startByteIndex+consumedByte],
+		Position: Position{
+			Line:  l.line,
+			Start: l.startByteIndex,
+		},
+	}, consumedByte
 }
 
 func (l *Lexer) readNumber() (token Token, consumedByte int) {

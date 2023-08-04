@@ -435,6 +435,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 0,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 18,
+					},
+				},
 			},
 		},
 		{
@@ -450,6 +458,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Position: Position{
 						Line:  1,
 						Start: 0,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  3,
+						Start: 21,
 					},
 				},
 			},
@@ -469,6 +485,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 3,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  3,
+						Start: 21,
+					},
+				},
 			},
 		},
 		{
@@ -484,6 +508,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Position: Position{
 						Line:  1,
 						Start: 0,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 21,
 					},
 				},
 			},
@@ -511,15 +543,20 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 25,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  2,
+						Start: 50,
+					},
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(tt.src, strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -527,12 +564,11 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
 
 				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
 			ok := assert.Equal(t, tt.want, gotTokens)
