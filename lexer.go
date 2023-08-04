@@ -41,48 +41,6 @@ func (l *Lexer) makeToken(kind Kind, value string) Token {
 	}
 }
 
-// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
-// Commentを除く
-func (l *Lexer) skipIgnoreTokens() (consumedByte int, consumedLine int) {
-ReadIgnoredTokenLoop:
-	for {
-		r, s, err := l.ReadRune()
-		if err != nil {
-			break ReadIgnoredTokenLoop
-		}
-
-		switch {
-		case isComma(r):
-			consumedByte += s
-			continue
-		case isUnicodeBOM(r):
-			consumedByte += s
-			continue
-		case isWhiteSpace(r):
-			consumedByte += s
-			continue
-		case isLineTerminator(r):
-			consumedByte += s
-			consumedLine++
-			r, s, err = l.ReadRune()
-			if err != nil {
-				break ReadIgnoredTokenLoop
-			}
-			if r == '\n' {
-				consumedByte += s
-			} else {
-				_ = l.UnreadRune()
-			}
-			continue
-		default:
-			_ = l.UnreadRune()
-			break ReadIgnoredTokenLoop
-		}
-	}
-
-	return consumedByte, consumedLine
-}
-
 func (l *Lexer) NextToken() (Token, error) {
 	consumedByte, consumedLine := l.skipIgnoreTokens()
 	l.startByteIndex += consumedByte
@@ -176,6 +134,29 @@ ReadCommentLoop:
 	}, consumedByte
 }
 
+func isNumber(r rune) bool {
+	return r == '-' || isDigit(r)
+}
+
+// https://spec.graphql.org/October2021/#ExponentPart
+func isExponentPart(r rune) bool {
+	return r == 'e' || r == 'E'
+}
+
+// https://spec.graphql.org/October2021/#FractionalPart
+func isFractionalPart(r rune) bool {
+	return r == '.'
+}
+
+// https://spec.graphql.org/October2021/#Digit
+func isDigit(r rune) bool {
+	return '0' <= r && r <= '9'
+}
+
+func isHexDigit(r rune) bool {
+	return isDigit(r) || ('a' <= r && r <= 'f') || ('A' <= r && r <= 'F')
+}
+
 func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	isFloat := false
 	value := make([]rune, 0)
@@ -187,7 +168,7 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	consumedByte += s
 	value = append(value, r)
 
-	if isNegativeSign(r) {
+	if r == '-' {
 		r, s, err = l.ReadRune()
 		if err != nil {
 			return l.makeToken(Invalid, ""), consumedByte
@@ -196,7 +177,7 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 		value = append(value, r)
 	}
 
-	if isZero(r) {
+	if r == '0' {
 		r, s, err = l.ReadRune()
 		if err != nil {
 			return l.makeToken(Int, string(value)), consumedByte
@@ -207,7 +188,7 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 		if isDigit(r) || isNameStart(r) && !isExponentPart(r) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
-	} else if isNonZeroDigit(r) {
+	} else if '1' <= r && r <= '9' {
 		for {
 			r, s, err = l.ReadRune()
 			if err != nil {
@@ -268,7 +249,7 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 		if err != nil {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
-		if isSign(r) {
+		if r == '-' || r == '+' {
 			r, s, err = l.ReadRune()
 			if err != nil {
 				return l.makeToken(Invalid, ""), consumedByte
@@ -376,12 +357,7 @@ func isNameStart(r rune) bool {
 
 // https://spec.graphql.org/October2021/#NameContinue
 func isNameContinue(r rune) bool {
-	switch {
-	case isNameStart(r) || isDigit(r):
-		return true
-	default:
-		return false
-	}
+	return isNameStart(r) || isDigit(r)
 }
 
 func (l *Lexer) readNameToken() (token Token, consumedByte int) {
@@ -587,27 +563,48 @@ func isLineTerminator(r rune) bool {
 	}
 }
 
-// https://spec.graphql.org/October2021/#sec-White-Space
-func isWhiteSpace(r rune) bool {
-	switch r {
-	case ' ', '\t':
-		return true
-	default:
-		return false
-	}
-}
+// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
+// Commentを除く
+func (l *Lexer) skipIgnoreTokens() (consumedByte int, consumedLine int) {
+ReadIgnoredTokenLoop:
+	for {
+		r, s, err := l.ReadRune()
+		if err != nil {
+			break ReadIgnoredTokenLoop
+		}
 
-// https://spec.graphql.org/October2021/#sec-Unicode
-func isUnicodeBOM(r rune) bool {
-	switch r {
-	case '\uFEFF':
-		return true
-	default:
-		return false
+		switch {
+		// insignificant comma
+		case r == ',':
+			consumedByte += s
+			continue
+		// unicode BOM
+		case r == '\uFEFF':
+			consumedByte += s
+			continue
+		// whitespace
+		case r == ' ', r == '\t':
+			consumedByte += s
+			continue
+		// line terminator
+		case isLineTerminator(r):
+			consumedByte += s
+			consumedLine++
+			r, s, err = l.ReadRune()
+			if err != nil {
+				break ReadIgnoredTokenLoop
+			}
+			if r == '\n' {
+				consumedByte += s
+			} else {
+				_ = l.UnreadRune()
+			}
+			continue
+		default:
+			_ = l.UnreadRune()
+			break ReadIgnoredTokenLoop
+		}
 	}
-}
 
-// https://spec.graphql.org/October2021/#sec-Insignificant-Commas
-func isComma(r rune) bool {
-	return r == ','
+	return consumedByte, consumedLine
 }
