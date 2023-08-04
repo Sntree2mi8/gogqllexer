@@ -9,6 +9,123 @@ import (
 	"testing"
 )
 
+func TestLexer_NextToken_SkipIgnoredTokens(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want []Token
+	}{
+		{
+			name: "ignore white space",
+			src:  "  query  ",
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 9,
+					},
+				},
+			},
+		},
+		{
+			name: "ignore line terminator",
+			src:  "\n\rquery\n\r\n",
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  3,
+						Start: 3,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  5,
+						Start: 10,
+					},
+				},
+			},
+		},
+		{
+			name: "ignore unicode byte order mark",
+			src:  "\uFEFFquery",
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 4,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 8,
+					},
+				},
+			},
+		},
+		{
+			name: "ignore comma",
+			src:  ",query,",
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 2,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 7,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(strings.NewReader(tt.src))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF {
+					break
+				}
+			}
+
+			assert.Equal(t, tt.want, gotTokens)
+		})
+	}
+}
+
 func TestLexer_NextToken_ReadSingleName(t *testing.T) {
 	tests := []struct {
 		name string

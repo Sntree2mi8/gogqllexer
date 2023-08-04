@@ -41,45 +41,56 @@ func (l *Lexer) makeToken(kind Kind, value string) Token {
 	}
 }
 
-func (l *Lexer) NextToken() (Token, error) {
-	// skip ignore tokens
+// https://spec.graphql.org/October2021/#sec-Language.Source-Text.Ignored-Tokens
+// Commentを除く
+func (l *Lexer) skipIgnoreTokens() (consumedByte int, consumedLine int) {
+ReadIgnoredTokenLoop:
 	for {
 		r, s, err := l.ReadRune()
 		if err != nil {
-			return l.makeEOFToken(), nil
+			break ReadIgnoredTokenLoop
 		}
 
-		// TODO: more ignore tokens
 		switch {
+		case isComma(r):
+			consumedByte += s
+			continue
+		case isUnicodeBOM(r):
+			consumedByte += s
+			continue
 		case isWhiteSpace(r):
-			l.startByteIndex += s
+			consumedByte += s
 			continue
 		case isLineTerminator(r):
-			l.startByteIndex += s
-			l.line++
+			consumedByte += s
+			consumedLine++
 			r, s, err = l.ReadRune()
 			if err != nil {
-				return l.makeEOFToken(), nil
+				break ReadIgnoredTokenLoop
 			}
 			if r == '\n' {
-				l.startByteIndex += s
+				consumedByte += s
 			} else {
-				if err = l.UnreadRune(); err != nil {
-					return l.makeToken(Invalid, ""), err
-				}
+				_ = l.UnreadRune()
 			}
 			continue
 		default:
-			if err = l.UnreadRune(); err != nil {
-				return l.makeToken(Invalid, ""), err
-			}
+			_ = l.UnreadRune()
+			break ReadIgnoredTokenLoop
 		}
-		break
 	}
+
+	return consumedByte, consumedLine
+}
+
+func (l *Lexer) NextToken() (Token, error) {
+	consumedByte, consumedLine := l.skipIgnoreTokens()
+	l.startByteIndex += consumedByte
+	l.line += consumedLine
 
 	r, err := l.peek()
 	if err != nil {
-		return l.makeToken(Invalid, ""), err
+		return l.makeEOFToken(), nil
 	}
 	switch {
 	case isNameStart(r):
@@ -544,4 +555,19 @@ func isWhiteSpace(r rune) bool {
 	default:
 		return false
 	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Unicode
+func isUnicodeBOM(r rune) bool {
+	switch r {
+	case '\uFEFF':
+		return true
+	default:
+		return false
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Insignificant-Commas
+func isComma(r rune) bool {
+	return r == ','
 }
