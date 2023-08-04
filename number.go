@@ -77,3 +77,16 @@ func isSign(r rune) bool {
 		return false
 	}
 }
+
+func isHexDigit(r rune) bool {
+	switch r {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return true
+	case 'a', 'b', 'c', 'd', 'e', 'f':
+		return true
+	case 'A', 'B', 'C', 'D', 'E', 'F':
+		return true
+	default:
+		return false
+	}
+}

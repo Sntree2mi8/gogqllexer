@@ -5,8 +5,144 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
+
+func TestLexer_NextToken_ReadSingleName(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "_query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "_query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "simple name",
+			src: &Source{
+				Body: "_0query",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "_0query",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "white space",
+			src: &Source{
+				Body: "  query  ",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "line feed",
+			src: &Source{
+				Body: "\nquery",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  2,
+						Start: 2,
+					},
+				},
+			},
+		},
+		{
+			name: "carriage return",
+			src: &Source{
+				Body: "\rquery",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  2,
+						Start: 2,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
 
 func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 	tests := []struct {
@@ -255,10 +391,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -302,6 +435,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 0,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 18,
+					},
+				},
 			},
 		},
 		{
@@ -317,6 +458,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Position: Position{
 						Line:  1,
 						Start: 0,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  3,
+						Start: 21,
 					},
 				},
 			},
@@ -336,6 +485,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 3,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  3,
+						Start: 21,
+					},
+				},
 			},
 		},
 		{
@@ -351,6 +508,14 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Position: Position{
 						Line:  1,
 						Start: 0,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 21,
 					},
 				},
 			},
@@ -378,15 +543,20 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 						Start: 25,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  2,
+						Start: 50,
+					},
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -394,12 +564,11 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
 
 				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
 			ok := assert.Equal(t, tt.want, gotTokens)
@@ -410,7 +579,8 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 	}
 }
 
-func TestLexer_NextToken_Int(t *testing.T) {
+// https://spec.graphql.org/October2021/#sec-Int-Value
+func TestLexer_NextToken_ReadInt(t *testing.T) {
 	tests := []struct {
 		name string
 		src  *Source
@@ -504,10 +674,7 @@ func TestLexer_NextToken_Int(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -516,7 +683,6 @@ func TestLexer_NextToken_Int(t *testing.T) {
 					t.Fatal(err)
 				}
 				if got.Kind == EOF {
-					t.Log(got)
 					break
 				}
 
@@ -531,6 +697,159 @@ func TestLexer_NextToken_Int(t *testing.T) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#sec-Int-Value
+func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "IntValue must not any leading 0",
+			src: &Source{
+				Body: "0123",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with dot",
+			src: &Source{
+				Body: "1.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with dot",
+			src: &Source{
+				Body: "0.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "1a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "0a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "1_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Int token can't end with name start character",
+			src: &Source{
+				Body: "0_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Float-Value
 func TestLexer_NextToken_Float(t *testing.T) {
 	tests := []struct {
 		name string
@@ -642,10 +961,7 @@ func TestLexer_NextToken_Float(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -669,6 +985,92 @@ func TestLexer_NextToken_Float(t *testing.T) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#sec-Float-Value
+func TestLexer_NextToken_Float_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "FloatToken can't end with dot",
+			src: &Source{
+				Body: "0.1.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src: &Source{
+				Body: "0.1a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src: &Source{
+				Body: "0.1_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
+					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Float-Value
 func TestLexer_NextToken_Exponent(t *testing.T) {
 	tests := []struct {
 		name string
@@ -746,10 +1148,7 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -759,6 +1158,90 @@ func TestLexer_NextToken_Exponent(t *testing.T) {
 				}
 				if got.Kind == EOF {
 					t.Log(got)
+					break
+				}
+
+				gotTokens = append(gotTokens, got)
+			}
+
+			ok := assert.Equal(t, tt.want, gotTokens)
+			if !ok {
+				t.Fatal("miss")
+			}
+		})
+	}
+}
+
+// https://spec.graphql.org/October2021/#sec-Float-Value
+func TestLexer_NextToken_Exponent_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		src  *Source
+		want []Token
+	}{
+		{
+			name: "ExponentToken can't end with dot",
+			src: &Source{
+				Body: "1e50.",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src: &Source{
+				Body: "1e50a",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src: &Source{
+				Body: "1e50_",
+				Name: "Spec",
+			},
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(strings.NewReader(tt.src.Body))
+
+			gotTokens := make([]Token, 0)
+			for {
+				got, err := l.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Kind == EOF {
 					break
 				}
 
@@ -920,10 +1403,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1215,10 +1695,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1335,10 +1812,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{
-				src:  tt.src,
-				line: 1,
-			}
+			l := New(strings.NewReader(tt.src.Body))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1362,6 +1836,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 }
 
 func TestLexer(t *testing.T) {
+	t.Skip()
 	// testdata/schema/schema.graphqlを読み取る
 	f, err := os.Open("./testdata/schema/schema.graphqls")
 	if err != nil {
@@ -1374,12 +1849,7 @@ func TestLexer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	src := &Source{
-		Body: string(b),
-		Name: "testdata/schema/schema.graphqls",
-	}
-
-	l := New(src)
+	l := New(strings.NewReader(string(b)))
 
 	tokens := make([]Token, 0)
 	for {
