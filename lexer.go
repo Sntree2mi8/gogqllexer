@@ -359,6 +359,26 @@ func (l *Lexer) readPunctuatorToken() (token Token, consumedByte int) {
 	}
 }
 
+// https://spec.graphql.org/October2021/#NameStart
+func isNameStart(r rune) bool {
+	switch {
+	case r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z':
+		return true
+	default:
+		return false
+	}
+}
+
+// https://spec.graphql.org/October2021/#NameContinue
+func isNameContinue(r rune) bool {
+	switch {
+	case isNameStart(r) || isDigit(r):
+		return true
+	default:
+		return false
+	}
+}
+
 func (l *Lexer) readNameToken() (token Token, consumedByte int) {
 	value := make([]rune, 0)
 	for {
