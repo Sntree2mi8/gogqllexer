@@ -368,6 +368,11 @@ func (l *Lexer) readNameToken() (token Token, consumedByte int) {
 	}
 }
 
+// https://spec.graphql.org/draft/#sec-String-Value
+func isStringValue(r rune) bool {
+	return r == '"'
+}
+
 func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine int) {
 	value := make([]rune, 0)
 	r, s, err := l.ReadRune()
