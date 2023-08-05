@@ -2,9 +2,6 @@ package gogqllexer
 
 import (
 	"github.com/stretchr/testify/assert"
-	"io"
-	"log"
-	"os"
 	"strings"
 	"testing"
 )
@@ -1564,91 +1561,5 @@ func TestLexer_NextToken_String(t *testing.T) {
 
 			assert.Equal(t, tt.want, gotTokens)
 		})
-	}
-}
-
-func TestLexer(t *testing.T) {
-	t.Skip()
-	// testdata/schema/schema.graphqlを読み取る
-	f, err := os.Open("./testdata/schema/schema.graphqls")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	b, err := io.ReadAll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	l := New(strings.NewReader(string(b)))
-
-	tokens := make([]Token, 0)
-	for {
-		got, err := l.NextToken()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tokens = append(tokens, got)
-		if got.Kind == EOF || got.Kind == Invalid {
-			break
-		}
-	}
-
-	for _, token := range tokens {
-		log.Println(DebugTokenString(token), token.Value, token.Position)
-	}
-}
-
-// DebugTokenString はトークンの文字列表現を返す
-func DebugTokenString(t Token) string {
-	switch t.Kind {
-	case EOF:
-		return "EOF"
-	case Invalid:
-		return "Invalid"
-	case Comment:
-		return "Comment"
-	case Int:
-		return "Int"
-	case Float:
-		return "Float"
-	case String:
-		return "String"
-	case BlockString:
-		return "BlockString"
-	case Name:
-		return "Name"
-	case Bang:
-		return "!"
-	case Dollar:
-		return "$"
-	case Amp:
-		return "&"
-	case ParenL:
-		return "("
-	case ParenR:
-		return ")"
-	case Spread:
-		return "..."
-	case Colon:
-		return ":"
-	case Equal:
-		return "="
-	case At:
-		return "@"
-	case BracketR:
-		return "["
-	case BracketL:
-		return "]"
-	case Pipe:
-		return "|"
-	case BraceL:
-		return "{"
-	case BraceR:
-		return "}"
-	default:
-		return ""
 	}
 }
