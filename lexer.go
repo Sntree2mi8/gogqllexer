@@ -1,6 +1,7 @@
 package gogqllexer
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -94,17 +95,16 @@ func isComment(r rune) bool {
 }
 
 func (l *Lexer) readComment() (token Token, consumedByte int) {
-	value := make([]rune, 0)
-
 	r, s, err := l.ReadRune()
 	if err != nil {
 		return l.makeEOFToken(), consumedByte
 	}
 	consumedByte += s
+	value := make([]rune, 0)
 	value = append(value, r)
 
 	if r != '#' {
-		return l.makeToken(Invalid, ""), consumedByte
+		return l.makeToken(Invalid, fmt.Sprintf("comment token must start with '#', got %s", string(r))), consumedByte
 	}
 
 ReadCommentLoop:
@@ -115,7 +115,7 @@ ReadCommentLoop:
 		}
 
 		switch {
-		case isLineTerminator(r), r < 0x0020 && r != '\t':
+		case isLineTerminator(r) || r < 0x0020 && r != '\t':
 			break ReadCommentLoop
 		default:
 			r, s, _ = l.ReadRune()
@@ -124,14 +124,7 @@ ReadCommentLoop:
 		}
 	}
 
-	return Token{
-		Kind:  Comment,
-		Value: string(value),
-		Position: Position{
-			Line:  l.line,
-			Start: l.startByteIndex,
-		},
-	}, consumedByte
+	return l.makeToken(Comment, string(value)), consumedByte
 }
 
 func isNumber(r rune) bool {
@@ -211,7 +204,6 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 
 	if isFractionalPart(r) {
 		isFloat = true
-		// fractional part must be followed by at least one digit
 		r, s, err = l.ReadRune()
 		if err != nil {
 			return l.makeToken(Invalid, ""), consumedByte
@@ -415,7 +407,7 @@ func (l *Lexer) readStringToken() (token Token, consumedByte int, consumedLine i
 			Kind:  BlockString,
 			Value: v,
 			Position: Position{
-				Line:  l.line + consumedLine,
+				Line:  l.line,
 				Start: l.startByteIndex + 1,
 			},
 		}

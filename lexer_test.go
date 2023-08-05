@@ -126,110 +126,38 @@ func TestLexer_NextToken_SkipIgnoredTokens(t *testing.T) {
 	}
 }
 
-func TestLexer_NextToken_ReadSingleName(t *testing.T) {
+func TestLexer_NextToken_Name(t *testing.T) {
 	tests := []struct {
 		name string
-		src  *Source
+		src  string
 		want []Token
 	}{
 		{
-			name: "simple name",
-			src: &Source{
-				Body: "query",
-				Name: "Spec",
-			},
+			name: "name",
+			src:  "_queryQUERY0123456789$",
 			want: []Token{
 				{
 					Kind:  Name,
-					Value: "query",
+					Value: "_queryQUERY0123456789",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
-			},
-		},
-		{
-			name: "simple name",
-			src: &Source{
-				Body: "_query",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
-					Kind:  Name,
-					Value: "_query",
+					Kind:  Dollar,
+					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 22,
 					},
 				},
-			},
-		},
-		{
-			name: "simple name",
-			src: &Source{
-				Body: "_0query",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
-					Kind:  Name,
-					Value: "_0query",
+					Kind:  EOF,
+					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "white space",
-			src: &Source{
-				Body: "  query  ",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  Name,
-					Value: "query",
-					Position: Position{
-						Line:  1,
-						Start: 3,
-					},
-				},
-			},
-		},
-		{
-			name: "line feed",
-			src: &Source{
-				Body: "\nquery",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  Name,
-					Value: "query",
-					Position: Position{
-						Line:  2,
-						Start: 2,
-					},
-				},
-			},
-		},
-		{
-			name: "carriage return",
-			src: &Source{
-				Body: "\rquery",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  Name,
-					Value: "query",
-					Position: Position{
-						Line:  2,
-						Start: 2,
+						Start: 22,
 					},
 				},
 			},
@@ -237,7 +165,7 @@ func TestLexer_NextToken_ReadSingleName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
+			l := New(strings.NewReader(tt.src))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -245,34 +173,27 @@ func TestLexer_NextToken_ReadSingleName(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
 
 				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
+			assert.Equal(t, tt.want, gotTokens)
 		})
 	}
 }
 
-func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
+func TestLexer_NextToken_Punctuator(t *testing.T) {
 	tests := []struct {
 		name string
-		src  *Source
+		src  string
 		want []Token
 	}{
 		{
 			name: "punctuator bang",
-			src: &Source{
-				Body: "!",
-				Name: "Spec",
-			},
+			src:  "!$&()...:=@[]{|}",
 			want: []Token{
 				{
 					Kind:  Bang,
@@ -282,225 +203,116 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 						Start: 1,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator dollar",
-			src: &Source{
-				Body: "$",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Dollar,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 2,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator amp",
-			src: &Source{
-				Body: "&",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Amp,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 3,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator paren left",
-			src: &Source{
-				Body: "(",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  ParenL,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 4,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator paren right",
-			src: &Source{
-				Body: ")",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  ParenR,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 5,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator spread",
-			src: &Source{
-				Body: "...",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Spread,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 6,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator colon",
-			src: &Source{
-				Body: ":",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Colon,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 9,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator equal",
-			src: &Source{
-				Body: "=",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Equal,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 10,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator at",
-			src: &Source{
-				Body: "@",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  At,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 11,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator bracket left",
-			src: &Source{
-				Body: "[",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  BracketL,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 12,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator bracket right",
-			src: &Source{
-				Body: "]",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  BracketR,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 13,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator brace left",
-			src: &Source{
-				Body: "{",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  BraceL,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 14,
 					},
 				},
-			},
-		},
-		{
-			name: "punctuator brace right",
-			src: &Source{
-				Body: "}",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  BraceR,
-					Value: "",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "punctuator pipe",
-			src: &Source{
-				Body: "|",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
 					Kind:  Pipe,
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 15,
+					},
+				},
+				{
+					Kind:  BraceR,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 16,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 16,
 					},
 				},
 			},
@@ -508,7 +320,7 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
+			l := New(strings.NewReader(tt.src))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -516,17 +328,14 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got.Kind == EOF {
-					break
-				}
 
 				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
+			assert.Equal(t, tt.want, gotTokens)
 		})
 	}
 }
@@ -534,22 +343,19 @@ func TestLexer_NextToken_SinglePunctuator(t *testing.T) {
 func TestLexer_NextToken_Comment(t *testing.T) {
 	tests := []struct {
 		name string
-		src  *Source
+		src  string
 		want []Token
 	}{
 		{
 			name: "read comment token",
-			src: &Source{
-				Body: "# This is comment.",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
+			src:  "# comment",
 			want: []Token{
 				{
 					Kind:  Comment,
-					Value: "# This is comment.",
+					Value: "# comment",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 				{
@@ -557,24 +363,21 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  1,
-						Start: 18,
+						Start: 9,
 					},
 				},
 			},
 		},
 		{
 			name: "read comment token",
-			src: &Source{
-				Body: "# This is comment.\n\r\n",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
+			src:  "# comment\n\r\n",
 			want: []Token{
 				{
 					Kind:  Comment,
-					Value: "# This is comment.",
+					Value: "# comment",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
 					},
 				},
 				{
@@ -582,24 +385,21 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  3,
-						Start: 21,
+						Start: 12,
 					},
 				},
 			},
 		},
 		{
 			name: "read comment token",
-			src: &Source{
-				Body: "\n\r\n# This is comment.",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
+			src:  "\n\r\n# comment",
 			want: []Token{
 				{
 					Kind:  Comment,
-					Value: "# This is comment.",
+					Value: "# comment",
 					Position: Position{
 						Line:  3,
-						Start: 3,
+						Start: 4,
 					},
 				},
 				{
@@ -607,24 +407,43 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Value: "",
 					Position: Position{
 						Line:  3,
-						Start: 21,
+						Start: 12,
 					},
 				},
 			},
 		},
 		{
 			name: "read comment token",
-			src: &Source{
-				Body: "# This is comment.   ",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
+			src:  "# comment   ",
 			want: []Token{
 				{
 					Kind:  Comment,
-					Value: "# This is comment.   ",
+					Value: "# comment   ",
 					Position: Position{
 						Line:  1,
-						Start: 0,
+						Start: 1,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 12,
+					},
+				},
+			},
+		},
+		{
+			name: "read comment token",
+			src:  "# comment1 # comment1",
+			want: []Token{
+				{
+					Kind:  Comment,
+					Value: "# comment1 # comment1",
+					Position: Position{
+						Line:  1,
+						Start: 1,
 					},
 				},
 				{
@@ -633,39 +452,6 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 					Position: Position{
 						Line:  1,
 						Start: 21,
-					},
-				},
-			},
-		},
-		{
-			name: "read comment token",
-			src: &Source{
-				Body: "# This is first comment.\n# This is second comment.",
-				Name: "Spec_IgnoreWhiteSpace",
-			},
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# This is first comment.",
-					Position: Position{
-						Line:  1,
-						Start: 0,
-					},
-				},
-				{
-					Kind:  Comment,
-					Value: "# This is second comment.",
-					Position: Position{
-						Line:  2,
-						Start: 25,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  2,
-						Start: 50,
 					},
 				},
 			},
@@ -673,7 +459,7 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
+			l := New(strings.NewReader(tt.src))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -696,19 +482,16 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 	}
 }
 
-// https://spec.graphql.org/October2021/#sec-Int-Value
-func TestLexer_NextToken_ReadInt(t *testing.T) {
+func TestLexer_NextToken_ReadNumber(t *testing.T) {
 	tests := []struct {
 		name string
-		src  *Source
+		src  string
 		want []Token
 	}{
+		// int
 		{
-			name: "IntToken_0",
-			src: &Source{
-				Body: "0",
-				Name: "Spec",
-			},
+			name: "0",
+			src:  "0",
 			want: []Token{
 				{
 					Kind:  Int,
@@ -718,14 +501,18 @@ func TestLexer_NextToken_ReadInt(t *testing.T) {
 						Start: 1,
 					},
 				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
 			},
 		},
 		{
-			name: "IntToken_1",
-			src: &Source{
-				Body: "1",
-				Name: "Spec",
-			},
+			name: "1",
+			src:  "1",
 			want: []Token{
 				{
 					Kind:  Int,
@@ -735,14 +522,17 @@ func TestLexer_NextToken_ReadInt(t *testing.T) {
 						Start: 1,
 					},
 				},
-			},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				}},
 		},
 		{
-			name: "IntToken_9",
-			src: &Source{
-				Body: "9",
-				Name: "Spec",
-			},
+			name: "9",
+			src:  "9",
 			want: []Token{
 				{
 					Kind:  Int,
@@ -752,14 +542,17 @@ func TestLexer_NextToken_ReadInt(t *testing.T) {
 						Start: 1,
 					},
 				},
-			},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				}},
 		},
 		{
-			name: "IntToken_100",
-			src: &Source{
-				Body: "100",
-				Name: "Spec",
-			},
+			name: "100",
+			src:  "100",
 			want: []Token{
 				{
 					Kind:  Int,
@@ -769,14 +562,17 @@ func TestLexer_NextToken_ReadInt(t *testing.T) {
 						Start: 1,
 					},
 				},
-			},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				}},
 		},
 		{
-			name: "IntToken_Negative",
-			src: &Source{
-				Body: "-9",
-				Name: "Spec",
-			},
+			name: "negative",
+			src:  "-9",
 			want: []Token{
 				{
 					Kind:  Int,
@@ -786,47 +582,18 @@ func TestLexer_NextToken_ReadInt(t *testing.T) {
 						Start: 1,
 					},
 				},
-			},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 2,
+					},
+				}},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Int-Value
-func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
+		// int invalid
 		{
 			name: "IntValue must not any leading 0",
-			src: &Source{
-				Body: "0123",
-				Name: "Spec",
-			},
+			src:  "0123",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -840,10 +607,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with dot",
-			src: &Source{
-				Body: "1.",
-				Name: "Spec",
-			},
+			src:  "1.",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -857,10 +621,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with dot",
-			src: &Source{
-				Body: "0.",
-				Name: "Spec",
-			},
+			src:  "0.",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -874,10 +635,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with name start character",
-			src: &Source{
-				Body: "1a",
-				Name: "Spec",
-			},
+			src:  "1a",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -891,10 +649,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with name start character",
-			src: &Source{
-				Body: "0a",
-				Name: "Spec",
-			},
+			src:  "0a",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -908,10 +663,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with name start character",
-			src: &Source{
-				Body: "1_",
-				Name: "Spec",
-			},
+			src:  "1_",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -925,10 +677,305 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 		},
 		{
 			name: "Int token can't end with name start character",
-			src: &Source{
-				Body: "0_",
-				Name: "Spec",
+			src:  "0_",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
 			},
+		},
+		// float(fractional)
+		{
+			name: "FloatToken",
+			src:  "0.1",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.1",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src:  "0.100",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.100",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 5,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src:  "0.0021",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.0021",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 6,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src:  "123.0021",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "123.0021",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 8,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src:  "-123.0021",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "-123.0021",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 9,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken",
+			src:  "0.0",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "0.0",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 3,
+					},
+				},
+			},
+		},
+		// float(fractional) invalid
+		{
+			name: "FloatToken can't end with dot",
+			src:  "0.1.",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src:  "0.1a",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "FloatToken can't end with name start character",
+			src:  "0.1_",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		// float(exponent)
+		{
+			name: "ExponentToken",
+			src:  "1e50",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1e50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src:  "1.0e50",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 6,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src:  "1.0e-50",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e-50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 7,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken",
+			src:  "1.0e+50",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e+50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 7,
+					},
+				},
+			},
+		},
+		// float(exponent) invalid
+		{
+			name: "ExponentToken can't end with dot",
+			src:  "1e50.",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src:  "1e50a",
+			want: []Token{
+				{
+					Kind:  Invalid,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "ExponentToken can't end with name start character",
+			src:  "1e50_",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -943,7 +990,7 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
+			l := New(strings.NewReader(tt.src))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -958,433 +1005,339 @@ func TestLexer_NextToken_ReadInt_Invalid(t *testing.T) {
 				}
 			}
 
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
+			assert.Equal(t, tt.want, gotTokens)
 		})
 	}
 }
 
-// https://spec.graphql.org/October2021/#sec-Float-Value
-func TestLexer_NextToken_Float(t *testing.T) {
+func TestLexer_NextToken_String(t *testing.T) {
 	tests := []struct {
 		name string
-		src  *Source
+		src  string
 		want []Token
 	}{
+		// string
 		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "0.1",
-				Name: "Spec",
-			},
+			name: "empty string",
+			src:  "\"\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "0.1",
+					Kind:  String,
+					Value: "\"\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
-			},
-		},
-		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "0.100",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
-					Kind:  Float,
-					Value: "0.100",
+					Kind: EOF,
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 2,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "0.0021",
-				Name: "Spec",
-			},
+			name: "simple string",
+			src:  "\"simple string\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "0.0021",
+					Kind:  String,
+					Value: "\"simple string\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 15,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "123.0021",
-				Name: "Spec",
-			},
+			name: "simple string with white space",
+			src:  "\"  simple string  \"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "123.0021",
+					Kind:  String,
+					Value: "\"  simple string  \"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 19,
+					},
+				},
+			},
+		},
+		// string escaped character
+		{
+			name: "escaped character (backslash)",
+			src:  "\"\\\\\"",
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\\\\"",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "-123.0021",
-				Name: "Spec",
-			},
+			name: "escaped character (double quote)",
+			src:  "\"\\\"\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "-123.0021",
+					Kind:  String,
+					Value: "\"\\\"\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken",
-			src: &Source{
-				Body: "0.0",
-				Name: "Spec",
-			},
+			name: "escaped character (slash)",
+			src:  "\"\\/\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "0.0",
+					Kind:  String,
+					Value: "\"\\/\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Float-Value
-func TestLexer_NextToken_Float_Invalid(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
-		{
-			name: "FloatToken can't end with dot",
-			src: &Source{
-				Body: "0.1.",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind: EOF,
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken can't end with name start character",
-			src: &Source{
-				Body: "0.1a",
-				Name: "Spec",
-			},
+			name: "escaped character (backspace)",
+			src:  "\"\\b\"",
 			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind:  String,
+					Value: "\"\\b\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "FloatToken can't end with name start character",
-			src: &Source{
-				Body: "0.1_",
-				Name: "Spec",
-			},
+			name: "escaped character (form feed)",
+			src:  "\"\\f\"",
 			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind:  String,
+					Value: "\"\\f\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Float-Value
-func TestLexer_NextToken_Exponent(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
-		{
-			name: "ExponentToken",
-			src: &Source{
-				Body: "1e50",
-				Name: "Spec",
-			},
-			want: []Token{
 				{
-					Kind:  Float,
-					Value: "1e50",
+					Kind: EOF,
 					Position: Position{
 						Line:  1,
-						Start: 1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "ExponentToken",
-			src: &Source{
-				Body: "1.0e50",
-				Name: "Spec",
-			},
+			name: "escaped character (line feed)",
+			src:  "\"\\n\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "1.0e50",
+					Kind:  String,
+					Value: "\"\\n\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "ExponentToken",
-			src: &Source{
-				Body: "1.0e-50",
-				Name: "Spec",
-			},
+			name: "escaped character (carriage return)",
+			src:  "\"\\r\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "1.0e-50",
+					Kind:  String,
+					Value: "\"\\r\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
 					},
 				},
 			},
 		},
 		{
-			name: "ExponentToken",
-			src: &Source{
-				Body: "1.0e+50",
-				Name: "Spec",
-			},
+			name: "escaped character (horizontal tab)",
+			src:  "\"\\t\"",
 			want: []Token{
 				{
-					Kind:  Float,
-					Value: "1.0e+50",
+					Kind:  String,
+					Value: "\"\\t\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
+					},
+				},
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					t.Log(got)
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-// https://spec.graphql.org/October2021/#sec-Float-Value
-func TestLexer_NextToken_Exponent_Invalid(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
+		// string escaped unicode
 		{
-			name: "ExponentToken can't end with dot",
-			src: &Source{
-				Body: "1e50.",
-				Name: "Spec",
-			},
+			name: "escaped unicode",
+			src:  "\"\\u000a\"",
 			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind:  String,
+					Value: "\"\\u000a\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 8,
 					},
 				},
 			},
 		},
 		{
-			name: "ExponentToken can't end with name start character",
-			src: &Source{
-				Body: "1e50a",
-				Name: "Spec",
-			},
+			name: "escaped unicode",
+			src:  "\"\\u0000\"",
 			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind:  String,
+					Value: "\"\\u0000\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 8,
 					},
 				},
 			},
 		},
 		{
-			name: "ExponentToken can't end with name start character",
-			src: &Source{
-				Body: "1e50_",
-				Name: "Spec",
-			},
+			name: "escaped unicode",
+			src:  "\"\\uffff\"",
 			want: []Token{
 				{
-					Kind:  Invalid,
-					Value: "",
+					Kind:  String,
+					Value: "\"\\uffff\"",
 					Position: Position{
 						Line:  1,
 						Start: 1,
 					},
 				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 8,
+					},
+				},
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-func TestLexer_NextToken_String_Invalid(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
+		{
+			name: "escaped unicode",
+			src:  "\"\\uffff0\"",
+			want: []Token{
+				{
+					Kind:  String,
+					Value: "\"\\uffff0\"",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 9,
+					},
+				},
+			},
+		},
+		// string invalid
 		{
 			name: "not closing string value",
-			src: &Source{
-				Body: "\"not closing string value",
-				Name: "Spec",
-			},
+			src:  "\"not closing string value",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1398,10 +1351,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 		},
 		{
 			name: "invalid string character (line feed)",
-			src: &Source{
-				Body: "\"\n\"",
-				Name: "Spec",
-			},
+			src:  "\"\n\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1415,10 +1365,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 		},
 		{
 			name: "invalid string character (line carriage return)",
-			src: &Source{
-				Body: "\"\r\"",
-				Name: "Spec",
-			},
+			src:  "\"\r\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1432,10 +1379,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 		},
 		{
 			name: "invalid string character (single backslash)",
-			src: &Source{
-				Body: "\"\\\"",
-				Name: "Spec",
-			},
+			src:  "\"\\\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1447,31 +1391,10 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 				},
 			},
 		},
-		// invalid escaped character
-		{
-			name: "escaped character (backslash)",
-			src: &Source{
-				Body: "\"\\\\\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\\\\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		// invalid escaped unicode
+		// string invalid escaped unicode
 		{
 			name: "escaped unicode over f",
-			src: &Source{
-				Body: "\"\\u000g\"",
-				Name: "Spec",
-			},
+			src:  "\"\\u000g\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1485,10 +1408,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 		},
 		{
 			name: "escaped unicode less than 4 digits",
-			src: &Source{
-				Body: "\"\\u000\"",
-				Name: "Spec",
-			},
+			src:  "\"\\u000\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1502,10 +1422,7 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 		},
 		{
 			name: "escaped unicode less than 4 digits",
-			src: &Source{
-				Body: "\"\\u\"",
-				Name: "Spec",
-			},
+			src:  "\"\\u\"",
 			want: []Token{
 				{
 					Kind:  Invalid,
@@ -1517,336 +1434,10 @@ func TestLexer_NextToken_String_Invalid(t *testing.T) {
 				},
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-				if got.Kind == Invalid {
-					break
-				}
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-func TestLexer_NextToken_String(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
-		{
-			name: "empty string",
-			src: &Source{
-				Body: "\"\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "simple string",
-			src: &Source{
-				Body: "\"simple string\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"simple string\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "simple string with white space",
-			src: &Source{
-				Body: "\"  simple string  \"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"  simple string  \"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		// escaped character
-		{
-			name: "escaped character (backslash)",
-			src: &Source{
-				Body: "\"\\\\\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\\\\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (double quote)",
-			src: &Source{
-				Body: "\"\\\"\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\\"\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (slash)",
-			src: &Source{
-				Body: "\"\\/\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\/\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (backspace)",
-			src: &Source{
-				Body: "\"\\b\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\b\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (form feed)",
-			src: &Source{
-				Body: "\"\\f\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\f\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (line feed)",
-			src: &Source{
-				Body: "\"\\n\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\n\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (carriage return)",
-			src: &Source{
-				Body: "\"\\r\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\r\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped character (horizontal tab)",
-			src: &Source{
-				Body: "\"\\t\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\t\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		// escaped unicode
-		{
-			name: "escaped unicode",
-			src: &Source{
-				Body: "\"\\u000a\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\u000a\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped unicode",
-			src: &Source{
-				Body: "\"\\u0000\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\u0000\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped unicode",
-			src: &Source{
-				Body: "\"\\uffff\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\uffff\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-		{
-			name: "escaped unicode",
-			src: &Source{
-				Body: "\"\\uffff0\"",
-				Name: "Spec",
-			},
-			want: []Token{
-				{
-					Kind:  String,
-					Value: "\"\\uffff0\"",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got.Kind == EOF {
-					break
-				}
-
-				gotTokens = append(gotTokens, got)
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
-		})
-	}
-}
-
-func TestLexer_NextToken_BlockString(t *testing.T) {
-	tests := []struct {
-		name string
-		src  *Source
-		want []Token
-	}{
+		// block string
 		{
 			name: "empty block string",
-			src: &Source{
-				Body: "\"\"\"\"\"\"",
-				Name: "Spec",
-			},
+			src:  "\"\"\"\"\"\"",
 			want: []Token{
 				{
 					Kind:  BlockString,
@@ -1856,14 +1447,18 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 						Start: 1,
 					},
 				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 6,
+					},
+				},
 			},
 		},
 		{
 			name: "simple string",
-			src: &Source{
-				Body: "\"\"\"simple string\"\"\"",
-				Name: "Spec",
-			},
+			src:  "\"\"\"simple string\"\"\"",
 			want: []Token{
 				{
 					Kind:  BlockString,
@@ -1873,14 +1468,19 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 						Start: 1,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 19,
+					},
+				},
 			},
 		},
 		{
 			name: "white space",
-			src: &Source{
-				Body: "\"\"\"  simple string  \"\"\"",
-				Name: "Spec",
-			},
+			src:  "\"\"\"  simple string  \"\"\"",
 			want: []Token{
 				{
 					Kind:  BlockString,
@@ -1890,38 +1490,56 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 						Start: 1,
 					},
 				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  1,
+						Start: 23,
+					},
+				},
 			},
 		},
 		{
 			name: "line feed",
-			src: &Source{
-				Body: "\"\"\" \nsimple string\"\"\"",
-				Name: "Spec",
-			},
+			src:  "\"\"\" \nsimple string\"\"\"",
 			want: []Token{
 				{
 					Kind:  BlockString,
 					Value: "\"\"\" \nsimple string\"\"\"",
 					Position: Position{
-						Line:  2,
+						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  2,
+						Start: 21,
 					},
 				},
 			},
 		},
 		{
 			name: "line carriage return",
-			src: &Source{
-				Body: "\"\"\" \rsimple string\"\"\"",
-				Name: "Spec",
-			},
+			src:  "\"\"\" \rsimple string\"\"\"",
 			want: []Token{
 				{
 					Kind:  BlockString,
 					Value: "\"\"\" \rsimple string\"\"\"",
 					Position: Position{
-						Line:  2,
+						Line:  1,
 						Start: 1,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  2,
+						Start: 21,
 					},
 				},
 			},
@@ -1929,7 +1547,7 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src.Body))
+			l := New(strings.NewReader(tt.src))
 
 			gotTokens := make([]Token, 0)
 			for {
@@ -1937,17 +1555,14 @@ func TestLexer_NextToken_BlockString(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got.Kind == EOF {
-					break
-				}
 
 				gotTokens = append(gotTokens, got)
+				if got.Kind == EOF || got.Kind == Invalid {
+					break
+				}
 			}
 
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
+			assert.Equal(t, tt.want, gotTokens)
 		})
 	}
 }
