@@ -42,41 +42,41 @@ func (l *Lexer) makeToken(kind Kind, value string) Token {
 	}
 }
 
-func (l *Lexer) NextToken() (Token, error) {
+func (l *Lexer) NextToken() Token {
 	consumedByte, consumedLine := l.skipIgnoreTokens()
 	l.startByteIndex += consumedByte
 	l.line += consumedLine
 
 	r, err := l.peek()
 	if err != nil {
-		return l.makeEOFToken(), nil
+		return l.makeEOFToken()
 	}
 	switch {
 	case isNameStart(r):
 		t, consumedByte := l.readNameToken()
 		l.startByteIndex += consumedByte
-		return t, nil
+		return t
 	case isPunctuator(r):
 		t, consumedByte := l.readPunctuatorToken()
 		l.startByteIndex += consumedByte
-		return t, nil
+		return t
 	case isNumber(r):
 		t, consumedByte := l.readNumber()
 		l.startByteIndex += consumedByte
-		return t, nil
+		return t
 	case isStringValue(r):
 		t, consumedByte, consumedLine := l.readStringToken()
 		l.startByteIndex += consumedByte
 		l.line += consumedLine
-		return t, nil
+		return t
 	case isComment(r):
 		t, consumedByte := l.readComment()
 		l.startByteIndex += consumedByte
-		return t, nil
+		return t
 	default:
 	}
 
-	return l.makeToken(Invalid, ""), nil
+	return l.makeToken(Invalid, "")
 }
 
 func (l *Lexer) peek() (rune, error) {
