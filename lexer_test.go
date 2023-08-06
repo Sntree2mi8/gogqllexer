@@ -107,10 +107,7 @@ func TestLexer_NextToken_SkipIgnoredTokens(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF {
@@ -166,10 +163,7 @@ func TestLexer_NextToken_Name(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF || got.Kind == Invalid {
@@ -321,10 +315,7 @@ func TestLexer_NextToken_Punctuator(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF || got.Kind == Invalid {
@@ -460,10 +451,7 @@ func TestLexer_NextToken_Comment(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF || got.Kind == Invalid {
@@ -991,10 +979,7 @@ func TestLexer_NextToken_ReadNumber(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF || got.Kind == Invalid {
@@ -1548,10 +1533,7 @@ func TestLexer_NextToken_String(t *testing.T) {
 
 			gotTokens := make([]Token, 0)
 			for {
-				got, err := l.NextToken()
-				if err != nil {
-					t.Fatal(err)
-				}
+				got := l.NextToken()
 
 				gotTokens = append(gotTokens, got)
 				if got.Kind == EOF || got.Kind == Invalid {
