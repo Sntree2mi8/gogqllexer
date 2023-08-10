@@ -100,6 +100,31 @@ func TestLexer_NextToken_SkipIgnoredTokens(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ignore comment",
+			src: `
+# comment
+query # comment
+#comment`,
+			want: []Token{
+				{
+					Kind:  Name,
+					Value: "query",
+					Position: Position{
+						Line:  3,
+						Start: 12,
+					},
+				},
+				{
+					Kind:  EOF,
+					Value: "",
+					Position: Position{
+						Line:  4,
+						Start: 35,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -324,145 +349,6 @@ func TestLexer_NextToken_Punctuator(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want, gotTokens)
-		})
-	}
-}
-
-func TestLexer_NextToken_Comment(t *testing.T) {
-	tests := []struct {
-		name string
-		src  string
-		want []Token
-	}{
-		{
-			name: "read comment token",
-			src:  "# comment",
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# comment",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  1,
-						Start: 9,
-					},
-				},
-			},
-		},
-		{
-			name: "read comment token",
-			src:  "# comment\n\r\n",
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# comment",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  3,
-						Start: 12,
-					},
-				},
-			},
-		},
-		{
-			name: "read comment token",
-			src:  "\n\r\n# comment",
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# comment",
-					Position: Position{
-						Line:  3,
-						Start: 4,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  3,
-						Start: 12,
-					},
-				},
-			},
-		},
-		{
-			name: "read comment token",
-			src:  "# comment   ",
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# comment   ",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  1,
-						Start: 12,
-					},
-				},
-			},
-		},
-		{
-			name: "read comment token",
-			src:  "# comment1 # comment1",
-			want: []Token{
-				{
-					Kind:  Comment,
-					Value: "# comment1 # comment1",
-					Position: Position{
-						Line:  1,
-						Start: 1,
-					},
-				},
-				{
-					Kind:  EOF,
-					Value: "",
-					Position: Position{
-						Line:  1,
-						Start: 21,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(strings.NewReader(tt.src))
-
-			gotTokens := make([]Token, 0)
-			for {
-				got := l.NextToken()
-
-				gotTokens = append(gotTokens, got)
-				if got.Kind == EOF || got.Kind == Invalid {
-					break
-				}
-			}
-
-			ok := assert.Equal(t, tt.want, gotTokens)
-			if !ok {
-				t.Fatal("miss")
-			}
 		})
 	}
 }
