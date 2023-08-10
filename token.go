@@ -20,7 +20,6 @@ const (
 	BraceL
 	BraceR
 	Pipe
-	Comment
 	Int
 	Float
 	String

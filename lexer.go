@@ -1,7 +1,6 @@
 package gogqllexer
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -69,10 +68,6 @@ func (l *Lexer) NextToken() Token {
 		l.startByteIndex += consumedByte
 		l.line += consumedLine
 		return t
-	case isComment(r):
-		t, consumedByte := l.readComment()
-		l.startByteIndex += consumedByte
-		return t
 	default:
 	}
 
@@ -87,44 +82,6 @@ func (l *Lexer) peek() (rune, error) {
 	_ = l.UnreadRune()
 
 	return r, nil
-}
-
-// https://spec.graphql.org/October2021/#sec-Comments
-func isComment(r rune) bool {
-	return r == '#'
-}
-
-func (l *Lexer) readComment() (token Token, consumedByte int) {
-	r, s, err := l.ReadRune()
-	if err != nil {
-		return l.makeEOFToken(), consumedByte
-	}
-	consumedByte += s
-	value := make([]rune, 0)
-	value = append(value, r)
-
-	if r != '#' {
-		return l.makeToken(Invalid, fmt.Sprintf("comment token must start with '#', got %s", string(r))), consumedByte
-	}
-
-ReadCommentLoop:
-	for {
-		r, err = l.peek()
-		if err != nil {
-			break
-		}
-
-		switch {
-		case isLineTerminator(r) || r < 0x0020 && r != '\t':
-			break ReadCommentLoop
-		default:
-			r, s, _ = l.ReadRune()
-			consumedByte += s
-			value = append(value, r)
-		}
-	}
-
-	return l.makeToken(Comment, string(value)), consumedByte
 }
 
 func isNumber(r rune) bool {
@@ -592,6 +549,21 @@ ReadIgnoredTokenLoop:
 				_ = l.UnreadRune()
 			}
 			continue
+		case r == '#':
+			consumedByte += s
+			for {
+				r, err = l.peek()
+				if err != nil {
+					break
+				}
+
+				if isLineTerminator(r) || r < 0x0020 && r != '\t' {
+					break
+				}
+
+				_, s, _ = l.ReadRune()
+				consumedByte += s
+			}
 		default:
 			_ = l.UnreadRune()
 			break ReadIgnoredTokenLoop
