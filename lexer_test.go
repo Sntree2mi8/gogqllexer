@@ -858,6 +858,28 @@ func TestLexer_NextToken_ReadNumber(t *testing.T) {
 				},
 			},
 		},
+		// read number only
+		{
+			name: "read number only",
+			src:  "1,",
+			want: []Token{
+				{
+					Kind:  Int,
+					Value: "1",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 2,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
