@@ -164,12 +164,11 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 		}
 	}
 
-	// TODO: ここでいらないものを読み込んでいる
-	r, s, _ = l.ReadRune()
-	consumedByte += s
-	value = append(value, r)
-
 	if isFractionalPart(r) {
+		r, s, _ = l.ReadRune()
+		consumedByte += s
+		value = append(value, r)
+
 		isFloat = true
 		r, s, err = l.ReadRune()
 		if err != nil {
@@ -201,6 +200,10 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	}
 
 	if isExponentPart(r) {
+		r, s, _ = l.ReadRune()
+		consumedByte += s
+		value = append(value, r)
+
 		isFloat = true
 
 		// check opt sign
