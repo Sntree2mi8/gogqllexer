@@ -880,6 +880,48 @@ func TestLexer_NextToken_ReadNumber(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "read number only (float)",
+			src:  "1.0,",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 4,
+					},
+				},
+			},
+		},
+		{
+			name: "read number only (exponent)",
+			src:  "1.0e50,",
+			want: []Token{
+				{
+					Kind:  Float,
+					Value: "1.0e50",
+					Position: Position{
+						Line:  1,
+						Start: 1,
+					},
+				},
+				{
+					Kind: EOF,
+					Position: Position{
+						Line:  1,
+						Start: 7,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

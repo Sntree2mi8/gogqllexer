@@ -165,31 +165,32 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	}
 
 	if isFractionalPart(r) {
+		isFloat = true
 		r, s, _ = l.ReadRune()
 		consumedByte += s
 		value = append(value, r)
 
-		isFloat = true
+		// dot must be followed by at least one digit
 		r, s, err = l.ReadRune()
 		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		if !isDigit(r) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		consumedByte += s
 		value = append(value, r)
 
-		if !isDigit(r) {
-			return l.makeToken(Invalid, ""), consumedByte
-		}
-
 		for {
-			r, s, err = l.ReadRune()
+			r, err = l.peek()
 			if err != nil {
-				break
+				return l.makeToken(Float, string(value)), consumedByte
 			}
-			consumedByte += s
-			value = append(value, r)
 
 			if isDigit(r) {
+				r, s, _ = l.ReadRune()
+				consumedByte += s
+				value = append(value, r)
 				continue
 			} else if (isNameStart(r) && !isExponentPart(r)) || r == '.' {
 				return l.makeToken(Invalid, ""), consumedByte
@@ -200,11 +201,10 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	}
 
 	if isExponentPart(r) {
+		isFloat = true
 		r, s, _ = l.ReadRune()
 		consumedByte += s
 		value = append(value, r)
-
-		isFloat = true
 
 		// check opt sign
 		r, err = l.peek()
@@ -212,29 +212,37 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		if r == '-' || r == '+' {
-			r, s, err = l.ReadRune()
-			if err != nil {
-				return l.makeToken(Invalid, ""), consumedByte
-			}
+			r, s, _ = l.ReadRune()
 			consumedByte += s
 			value = append(value, r)
 		}
 
+		// must be followed by at least one digit
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		if !isDigit(r) {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		consumedByte += s
+		value = append(value, r)
+
 		for {
-			r, s, err = l.ReadRune()
+			r, err = l.peek()
 			if err != nil {
-				break
+				return l.makeToken(Float, string(value)), consumedByte
 			}
-			consumedByte += s
-			value = append(value, r)
 
 			if isDigit(r) {
+				r, s, _ = l.ReadRune()
+				consumedByte += s
+				value = append(value, r)
+
 				continue
 			} else if isNameStart(r) || r == '.' {
 				return l.makeToken(Invalid, ""), consumedByte
 			} else {
-				_ = l.UnreadRune()
-				consumedByte -= s
 				break
 			}
 		}
