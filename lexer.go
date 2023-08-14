@@ -109,78 +109,88 @@ func isHexDigit(r rune) bool {
 
 func (l *Lexer) readNumber() (token Token, consumedByte int) {
 	isFloat := false
+	// TODO: fix name. スコープがでかいのに不鮮明な名前
+	s := 0
 	value := make([]rune, 0)
 
-	r, s, err := l.ReadRune()
+	// check EOF
+	r, err := l.peek()
 	if err != nil {
 		return l.makeEOFToken(), consumedByte
 	}
-	consumedByte += s
-	value = append(value, r)
 
+	// check sign
 	if r == '-' {
-		r, s, err = l.ReadRune()
+		r, s, _ = l.ReadRune()
+		consumedByte += s
+		value = append(value, r)
+
+		r, err = l.peek()
 		if err != nil {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
+	}
+
+	// read integer part
+	leadingZero := false
+
+	// check reading 0
+	if r == '0' {
+		leadingZero = true
+		r, s, _ = l.ReadRune()
 		consumedByte += s
 		value = append(value, r)
 	}
 
-	if r == '0' {
-		r, s, err = l.ReadRune()
+	for {
+		r, err = l.peek()
 		if err != nil {
 			return l.makeToken(Int, string(value)), consumedByte
 		}
-		consumedByte += s
-		value = append(value, r)
 
-		if isDigit(r) || isNameStart(r) && !isExponentPart(r) {
-			return l.makeToken(Invalid, ""), consumedByte
-		}
-	} else if '1' <= r && r <= '9' {
-		for {
-			r, s, err = l.ReadRune()
-			if err != nil {
-				return l.makeToken(Int, string(value)), consumedByte
+		if isDigit(r) {
+			if leadingZero {
+				return l.makeToken(Invalid, ""), consumedByte
 			}
+			r, s, _ = l.ReadRune()
 			consumedByte += s
 			value = append(value, r)
-
-			if isDigit(r) {
-				continue
-			} else if isNameStart(r) && !isExponentPart(r) {
-				return l.makeToken(Invalid, ""), consumedByte
-			} else {
-				break
-			}
+		} else if isNameStart(r) && !isExponentPart(r) {
+			_, s, _ = l.ReadRune()
+			consumedByte += s
+			return l.makeToken(Invalid, ""), consumedByte
+		} else {
+			break
 		}
-	} else {
-		return l.makeToken(Invalid, ""), consumedByte
 	}
 
 	if isFractionalPart(r) {
 		isFloat = true
+		r, s, _ = l.ReadRune()
+		consumedByte += s
+		value = append(value, r)
+
+		// dot must be followed by at least one digit
 		r, s, err = l.ReadRune()
 		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		if !isDigit(r) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		consumedByte += s
 		value = append(value, r)
 
-		if !isDigit(r) {
-			return l.makeToken(Invalid, ""), consumedByte
-		}
-
 		for {
-			r, s, err = l.ReadRune()
+			r, err = l.peek()
 			if err != nil {
-				break
+				return l.makeToken(Float, string(value)), consumedByte
 			}
-			consumedByte += s
-			value = append(value, r)
 
 			if isDigit(r) {
+				r, s, _ = l.ReadRune()
+				consumedByte += s
+				value = append(value, r)
 				continue
 			} else if (isNameStart(r) && !isExponentPart(r)) || r == '.' {
 				return l.makeToken(Invalid, ""), consumedByte
@@ -192,6 +202,9 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 
 	if isExponentPart(r) {
 		isFloat = true
+		r, s, _ = l.ReadRune()
+		consumedByte += s
+		value = append(value, r)
 
 		// check opt sign
 		r, err = l.peek()
@@ -199,29 +212,37 @@ func (l *Lexer) readNumber() (token Token, consumedByte int) {
 			return l.makeToken(Invalid, ""), consumedByte
 		}
 		if r == '-' || r == '+' {
-			r, s, err = l.ReadRune()
-			if err != nil {
-				return l.makeToken(Invalid, ""), consumedByte
-			}
+			r, s, _ = l.ReadRune()
 			consumedByte += s
 			value = append(value, r)
 		}
 
+		// must be followed by at least one digit
+		r, s, err = l.ReadRune()
+		if err != nil {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		if !isDigit(r) {
+			return l.makeToken(Invalid, ""), consumedByte
+		}
+		consumedByte += s
+		value = append(value, r)
+
 		for {
-			r, s, err = l.ReadRune()
+			r, err = l.peek()
 			if err != nil {
-				break
+				return l.makeToken(Float, string(value)), consumedByte
 			}
-			consumedByte += s
-			value = append(value, r)
 
 			if isDigit(r) {
+				r, s, _ = l.ReadRune()
+				consumedByte += s
+				value = append(value, r)
+
 				continue
 			} else if isNameStart(r) || r == '.' {
 				return l.makeToken(Invalid, ""), consumedByte
 			} else {
-				_ = l.UnreadRune()
-				consumedByte -= s
 				break
 			}
 		}
